@@ -1,0 +1,231 @@
+---
+title: "Leaders and Ages"
+description: "How leaders work across ages, LeaderUnlockBuilder, and age-specific configurations."
+keywords: ["leaders", "ages", "LeaderUnlockBuilder", "CivilizationUnlockBuilder", "age transitions"]
+---
+
+In Civilization VII, leaders are separate from civilizations. A leader can lead any compatible civilization in any age. This guide covers associating leaders with civilizations, defining age-specific behaviors, and handling transitions.
+
+## How leaders work
+
+The relationship between leaders and civilizations is managed through unlock records, not hard-coded pairings. The key builders are:
+
+- `LeaderUnlockBuilder` — associates an existing leader with a civilization for an age
+- `CivilizationUnlockBuilder` — defines which civilization is available as a transition target
+
+<Note>
+The SDK does not currently provide a `LeaderBuilder` class for creating entirely new leaders from scratch. Creating a new leader requires raw XML. This guide covers associating existing leaders with civilizations, which is the most common use case.
+</Note>
+
+## Associating a leader with a civilization
+
+```typescript
+import {
+    ACTION_GROUP_BUNDLE,
+    LeaderUnlockBuilder,
+    Mod,
+    AGE,
+} from 'civ7-modding-tools';
+
+const mod = new Mod({ id: 'my-leader-mod', version: '1.0' });
+
+const decebalusLeadsDacia = new LeaderUnlockBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+
+    leaderUnlock: {
+        leaderType: 'LEADER_DECEBALUS',   // Must be an existing leader type
+        type: 'CIVILIZATION_DACIA',       // Your civilization type
+        ageType: AGE.ANTIQUITY,
+    },
+
+    // AI selection weight. Higher = more likely to be chosen.
+    leaderCivilizationBias: { bias: 10 },
+
+    // Tooltip shown on the leader selection screen
+    localizations: [{
+        tooltip: '[B]Decebalus[/B] ruled [B]Dacia[/B] from 87 to 106 CE.',
+    }],
+});
+
+mod.add([decebalusLeadsDacia]).build('./dist');
+```
+
+### `leaderCivilizationBias`
+
+The `bias` value influences how often the AI picks this leader-civilization pairing. Higher values make the pairing more likely:
+
+| Bias value | Effect |
+|---|---|
+| `1–2` | Rarely selected |
+| `4` | Standard likelihood |
+| `8–10` | Frequently selected |
+
+## Multiple leaders for one civilization
+
+```typescript
+// First leader option
+const burebista = new LeaderUnlockBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    leaderUnlock: {
+        leaderType: 'LEADER_BUREBISTA',
+        type: 'CIVILIZATION_DACIA',
+        ageType: AGE.ANTIQUITY,
+    },
+    leaderCivilizationBias: { bias: 8 },
+    localizations: [{
+        tooltip: '[B]Burebista[/B] unified the Dacian tribes (82–44 BCE).',
+    }],
+});
+
+// Second leader option
+const decebalus = new LeaderUnlockBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    leaderUnlock: {
+        leaderType: 'LEADER_DECEBALUS',
+        type: 'CIVILIZATION_DACIA',
+        ageType: AGE.ANTIQUITY,
+    },
+    leaderCivilizationBias: { bias: 10 },
+    localizations: [{
+        tooltip: '[B]Decebalus[/B], last independent king of Dacia.',
+    }],
+});
+
+mod.add([burebista, decebalus]);
+```
+
+## Civilization age transitions
+
+Define which civilizations are available when players advance to a new age:
+
+```typescript
+import { CivilizationUnlockBuilder } from 'civ7-modding-tools';
+
+// Players who led Dacia in Antiquity can transition to Rome in Exploration
+const daciaToRome = new CivilizationUnlockBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_EXPLORATION,
+    from: {
+        civilizationType: 'CIVILIZATION_DACIA',
+        ageType: AGE.ANTIQUITY,
+    },
+    to: {
+        civilizationType: 'CIVILIZATION_ROME',
+        ageType: AGE.EXPLORATION,
+    },
+});
+
+mod.add([daciaToRome]);
+```
+
+### Multiple transition options
+
+Give players a choice of which civilization to continue with:
+
+```typescript
+// Option 1: Dacia → Rome
+const daciaToRome = new CivilizationUnlockBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_EXPLORATION,
+    from: { civilizationType: 'CIVILIZATION_DACIA', ageType: AGE.ANTIQUITY },
+    to: { civilizationType: 'CIVILIZATION_ROME', ageType: AGE.EXPLORATION },
+});
+
+// Option 2: Dacia → Hungary
+const daciaToHungary = new CivilizationUnlockBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_EXPLORATION,
+    from: { civilizationType: 'CIVILIZATION_DACIA', ageType: AGE.ANTIQUITY },
+    to: { civilizationType: 'CIVILIZATION_HUNGARY', ageType: AGE.EXPLORATION },
+});
+
+mod.add([daciaToRome, daciaToHungary]);
+```
+
+## Age-specific leader abilities
+
+Use age requirements on modifiers to create abilities that only activate in specific ages:
+
+```typescript
+import {
+    ModifierBuilder,
+    COLLECTION,
+    EFFECT,
+    REQUIREMENT,
+    AGE,
+} from 'civ7-modding-tools';
+
+// +5 Combat only in Antiquity
+const antiquityBonus = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_UNITS,
+        effect: EFFECT.UNIT_ADJUST_COMBAT_STRENGTH,
+        permanent: true,
+        requirements: [{
+            type: REQUIREMENT.PLAYER_IS_IN_AGE,
+            arguments: [{ name: 'AgeType', value: AGE.ANTIQUITY }],
+        }],
+        arguments: [{ name: 'Amount', value: 5 }],
+    },
+    localizations: [{
+        description: '+5 Combat Strength in the Antiquity Age.',
+    }],
+});
+```
+
+## Creating a new leader via raw XML
+
+When you need a completely new leader (not just an association), use `ImportFileBuilder` to load handwritten XML:
+
+```typescript
+import {
+    ACTION_GROUP_BUNDLE,
+    ACTION_GROUP_ACTION,
+    ImportFileBuilder,
+    Mod,
+} from 'civ7-modding-tools';
+
+const mod = new Mod({ id: 'my-new-leader-mod', version: '1.0' });
+
+const leaderXML = `<?xml version="1.0" encoding="utf-8"?>
+<Database>
+  <Types>
+    <Row Type="LEADER_YOUR_LEADER" Kind="KIND_LEADER"/>
+  </Types>
+  <Leaders>
+    <Row LeaderType="LEADER_YOUR_LEADER"
+         Name="LOC_LEADER_YOUR_LEADER_NAME"
+         InheritFrom="LEADER_DEFAULT"
+         Description="LOC_LEADER_YOUR_LEADER_DESCRIPTION"/>
+  </Leaders>
+  <LeaderTraits>
+    <Row LeaderType="LEADER_YOUR_LEADER" TraitType="TRAIT_LEADER_YOUR_ABILITY"/>
+  </LeaderTraits>
+</Database>`;
+
+const leaderDefinition = new ImportFileBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    content: leaderXML,
+    name: 'leaders/your_leader.xml',
+    actionGroupActions: [ACTION_GROUP_ACTION.UPDATE_DATABASE],
+});
+
+mod.add([leaderDefinition]).build('./dist');
+```
+
+## Best practices
+
+<AccordionGroup>
+  <Accordion title="Match leader personalities to civilization themes">
+    If your civilization focuses on military, associate leaders that have militaristic traits so the AI plays the civilization as designed.
+  </Accordion>
+  <Accordion title="Provide at least two transition options">
+    Give players a choice of where to take their civilization in the next age. This mirrors how official DLC civilizations work and gives players strategic agency.
+  </Accordion>
+  <Accordion title="Set historically plausible transitions">
+    Transitions from Antiquity civilizations to Exploration-era neighbors (geographically or historically related) feel more authentic than arbitrary combinations.
+  </Accordion>
+</AccordionGroup>
+
+## Related guides
+
+- [Creating Civilizations](/guides/typescript/creating-civilizations)
+- [Modifiers and Effects](/guides/typescript/modifiers-and-effects)
+- [Example: Dacia Civilization](/guides/examples/dacia-civilization)

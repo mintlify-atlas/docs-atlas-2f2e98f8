@@ -1,0 +1,243 @@
+---
+title: ".modinfo Files"
+description: "Structure and fields of the .modinfo XML file that every Civ7 mod requires."
+keywords: ["modinfo", "mod definition", "action groups", "UpdateDatabase", "ImportFiles"]
+---
+
+Every Civilization VII mod must have exactly one `.modinfo` file at its root. The game reads this file to identify the mod, resolve dependencies, and determine which files to load and when.
+
+<Note>
+When using the SDK, the `.modinfo` is generated automatically by `mod.build()`. You only need to author it by hand if you are writing a pure XML/SQL mod.
+</Note>
+
+## Minimal example
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<Mod id="my-first-mod" version="1" xmlns="ModInfo">
+  <Properties>
+    <n>My First Mod</n>
+    <Description>Adds a custom scout unit to the Antiquity age.</Description>
+    <Authors>Your Name</Authors>
+    <Version>1.0.0</Version>
+    <AffectsSavedGames>1</AffectsSavedGames>
+  </Properties>
+
+  <Dependencies>
+    <Mod id="base-standard" title="LOC_MODULE_BASE_STANDARD_NAME"/>
+  </Dependencies>
+
+  <ActionCriteria>
+    <Criteria id="age-antiquity-current">
+      <AgeInUse>AGE_ANTIQUITY</AgeInUse>
+    </Criteria>
+    <Criteria id="always">
+      <AlwaysMet/>
+    </Criteria>
+  </ActionCriteria>
+
+  <ActionGroups>
+    <ActionGroup id="units" scope="game" criteria="age-antiquity-current">
+      <Actions>
+        <UpdateDatabase>
+          <Item>data/unit.xml</Item>
+        </UpdateDatabase>
+      </Actions>
+    </ActionGroup>
+    <ActionGroup id="text" scope="game" criteria="always">
+      <Actions>
+        <UpdateDatabase>
+          <Item>text/localizations.xml</Item>
+        </UpdateDatabase>
+      </Actions>
+    </ActionGroup>
+  </ActionGroups>
+</Mod>
+```
+
+## Required fields
+
+### `<Mod>` root element
+
+| Attribute | Description | Example |
+|---|---|---|
+| `id` | Unique identifier for the mod. Use reverse-domain notation. | `com.yourname.mymod` |
+| `version` | Integer version. Increment when releasing updates. | `1` |
+| `xmlns` | Must be `"ModInfo"`. | `ModInfo` |
+
+### `<Properties>` block
+
+| Tag | Required | Description |
+|---|---|---|
+| `<n>` | Yes | Display name shown in the mod manager. |
+| `<Description>` | Recommended | Short description for the mod browser. |
+| `<Authors>` | Recommended | Comma-separated author names. |
+| `<Version>` | Recommended | Human-readable version string (e.g., `1.2.0`). |
+| `<AffectsSavedGames>` | Yes | Set to `1` if the mod adds/changes gameplay data. |
+| `<SupportsSinglePlayer>` | No | Defaults to `true`. |
+| `<SupportsMultiplayer>` | No | Set to `false` if the mod is SP-only. |
+
+## Dependencies
+
+Dependencies tell the game which mods must be loaded before yours.
+
+```xml
+<Dependencies>
+  <!-- Always depend on the base game standard module -->
+  <Mod id="base-standard" title="LOC_MODULE_BASE_STANDARD_NAME"/>
+
+  <!-- Optional: depend on a specific age module -->
+  <Mod id="age-antiquity" title="LOC_MODULE_AGE_ANTIQUITY_NAME"/>
+
+  <!-- Optional: depend on another community mod -->
+  <Mod id="com.somedev.somemod" title="Some Other Mod"/>
+</Dependencies>
+```
+
+<Warning>
+Omitting `base-standard` as a dependency can cause your XML data to load before the database schema is initialized, resulting in a crash.
+</Warning>
+
+## ActionCriteria
+
+Criteria define boolean conditions the game evaluates to decide whether an action group should execute.
+
+```xml
+<ActionCriteria>
+  <!-- True only when the Antiquity age is active -->
+  <Criteria id="age-antiquity-current">
+    <AgeInUse>AGE_ANTIQUITY</AgeInUse>
+  </Criteria>
+
+  <!-- True only when Exploration is active -->
+  <Criteria id="age-exploration-current">
+    <AgeInUse>AGE_EXPLORATION</AgeInUse>
+  </Criteria>
+
+  <!-- Always true -->
+  <Criteria id="always">
+    <AlwaysMet/>
+  </Criteria>
+</ActionCriteria>
+```
+
+## ActionGroups
+
+Action groups bind a set of file actions to a timing criterion.
+
+```xml
+<ActionGroups>
+  <ActionGroup id="my-group" scope="game" criteria="age-antiquity-current">
+    <Actions>
+      <!-- Load XML into the game database -->
+      <UpdateDatabase>
+        <Item>civilizations/dacia.xml</Item>
+        <Item>units/falx-warrior.xml</Item>
+      </UpdateDatabase>
+
+      <!-- Import external files (icons, SQL) -->
+      <ImportFiles>
+        <Item>imports/civ_sym_dacia.dds</Item>
+      </ImportFiles>
+    </Actions>
+  </ActionGroup>
+</ActionGroups>
+```
+
+### `scope` values
+
+| Scope | When used |
+|---|---|
+| `game` | Standard gameplay content |
+| `shell` | Frontend / main menu content |
+| `editor` | World builder tools |
+
+### Action types
+
+| Action | Purpose |
+|---|---|
+| `UpdateDatabase` | Load XML files into the game's SQL database |
+| `ImportFiles` | Copy binary files (DDS icons, sounds, etc.) into the game's VFS |
+| `UpdateText` | Load localization XML (alternative to UpdateDatabase for text) |
+| `ReplaceUIScript` | Swap a JS UI file with a custom version |
+| `AddUserInterfaces` | Register new JS UI panels |
+
+## How the SDK generates .modinfo
+
+When you call `mod.build('./dist')`, the SDK:
+
+1. Collects all builders added via `mod.add()`
+2. Groups XML output by `actionGroupBundle` (e.g., `AGE_ANTIQUITY`)
+3. Writes XML files into organized subdirectories
+4. Generates a complete `.modinfo` with the correct `<ActionGroups>` pointing to each file
+5. Copies imported assets and registers them under `<ImportFiles>`
+
+```typescript
+import { Mod, UnitBuilder, ACTION_GROUP_BUNDLE, UNIT_CLASS } from 'civ7-modding-tools';
+
+const mod = new Mod({
+    id: 'my-scout-mod',
+    version: '1.0',
+});
+
+const scout = new UnitBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    // ... configuration
+});
+
+// Generates dist/my-scout-mod.modinfo automatically
+mod.add([scout]).build('./dist');
+```
+
+## Complete .modinfo example
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<Mod id="com.example.dacia-civilization" version="1" xmlns="ModInfo">
+  <Properties>
+    <n>Dacia Civilization</n>
+    <Description>Adds the Dacia civilization with Burebista and Decebalus.</Description>
+    <Authors>Example Author</Authors>
+    <Version>1.0.0</Version>
+    <AffectsSavedGames>1</AffectsSavedGames>
+    <SupportsSinglePlayer>true</SupportsSinglePlayer>
+    <SupportsMultiplayer>true</SupportsMultiplayer>
+    <Category>Civilizations</Category>
+  </Properties>
+
+  <Dependencies>
+    <Mod id="base-standard" title="LOC_MODULE_BASE_STANDARD_NAME"/>
+  </Dependencies>
+
+  <ActionCriteria>
+    <Criteria id="age-antiquity-current">
+      <AgeInUse>AGE_ANTIQUITY</AgeInUse>
+    </Criteria>
+    <Criteria id="always">
+      <AlwaysMet/>
+    </Criteria>
+  </ActionCriteria>
+
+  <ActionGroups>
+    <ActionGroup id="civilization-data" scope="game" criteria="age-antiquity-current">
+      <Actions>
+        <UpdateDatabase>
+          <Item>civilizations/dacia/current.xml</Item>
+          <Item>civilizations/dacia/game-effects.xml</Item>
+          <Item>units/falx-warrior/current.xml</Item>
+        </UpdateDatabase>
+        <ImportFiles>
+          <Item>imports/civ_sym_dacia.dds</Item>
+        </ImportFiles>
+      </Actions>
+    </ActionGroup>
+    <ActionGroup id="text" scope="game" criteria="always">
+      <Actions>
+        <UpdateDatabase>
+          <Item>text/dacia-localizations.xml</Item>
+        </UpdateDatabase>
+      </Actions>
+    </ActionGroup>
+  </ActionGroups>
+</Mod>
+```

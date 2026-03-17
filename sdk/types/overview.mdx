@@ -1,0 +1,155 @@
+---
+title: "TypeScript Types"
+description: "Utility types and node type aliases that power the SDK's type system."
+---
+
+The SDK's type system ensures that mod configuration is correct at compile time — missing required fields are flagged, invalid constant values are rejected, and node type shapes are enforced.
+
+## Import
+
+```typescript
+import type {
+  TClassProperties,
+  TObjectValues,
+  TPartialRequired,
+  TPartialNullable,
+  TLocalizationProperties,
+} from '@mateicanavra/civ7-sdk';
+```
+
+## Utility types
+
+### `TClassProperties<T>`
+
+Extracts only non-function (data) properties from a class, excluding methods. Used internally to derive config types from builder and node classes.
+
+```typescript
+type TClassProperties<T> = {
+  [K in keyof T as T[K] extends Function ? never : K]: T[K];
+};
+```
+
+Example — all builder config types are derived this way:
+
+```typescript
+// Inside UnitBuilder.ts:
+type TUnitBuilder = TClassProperties<UnitBuilder>;
+// Produces: { unit: ..., unitStat: ..., unitCost: ..., actionGroupBundle: ..., ... }
+```
+
+### `TObjectValues<T>`
+
+Extracts the union of all value types from a `const` object. Used to type constant references.
+
+```typescript
+type TObjectValues<T> = T[keyof T];
+```
+
+Example:
+
+```typescript
+import { YIELD, TObjectValues } from '@mateicanavra/civ7-sdk';
+
+type YieldType = TObjectValues<typeof YIELD>;
+// 'YIELD_FOOD' | 'YIELD_PRODUCTION' | 'YIELD_GOLD' | 'YIELD_SCIENCE' | ...
+
+// Use in a function signature:
+function createYieldChange(yieldType: YieldType, amount: number) { ... }
+```
+
+### `TPartialRequired<T, K>`
+
+Makes a type where all properties are optional except for the keys in `K`, which are required and non-nullable.
+
+```typescript
+type TPartialRequired<T, K extends keyof T> =
+  Partial<T> & { [P in K]-?: NonNullable<T[P]> };
+```
+
+This is the primary mechanism builders use to enforce required fields while keeping everything else optional:
+
+```typescript
+// UnitBuilder requires unitType, everything else is optional
+unit: TPartialRequired<TUnitNode, 'unitType'>
+
+// CivilizationBuilder requires civilizationType and domain
+civilization: TPartialRequired<TCivilizationNode, 'civilizationType' | 'domain'>
+```
+
+### `TPartialNullable<T>`
+
+Makes all properties of `T` both optional and nullable (`T | null`).
+
+```typescript
+type TPartialNullable<T> = { [K in keyof T]?: T[K] | null };
+```
+
+### `TLocalizationProperties<T>`
+
+Used internally by localization classes to type localization config objects.
+
+## Node type aliases
+
+Every node class exports a corresponding `T*` type alias for its data properties. These are `TClassProperties` picks that define the shape of each node's constructor payload.
+
+| Type alias | Node class | Description |
+|---|---|---|
+| `TUnitNode` | `UnitNode` | Unit row shape |
+| `TUnitStatNode` | `UnitStatNode` | Unit stats row shape |
+| `TUnitCostNode` | `UnitCostNode` | Unit cost row shape |
+| `TUnitReplaceNode` | `UnitReplaceNode` | Unit replace row shape |
+| `TUnitUpgradeNode` | `UnitUpgradeNode` | Unit upgrade row shape |
+| `TVisualRemapNode` | `VisualRemapNode` | Visual remap row shape |
+| `TCivilizationNode` | `CivilizationNode` | Civilization row shape |
+| `TTraitNode` | `TraitNode` | Trait row shape |
+| `TConstructibleNode` | `ConstructibleNode` | Constructible row shape |
+| `TBuildingNode` | `BuildingNode` | Building row shape |
+| `TImprovementNode` | `ImprovementNode` | Improvement row shape |
+| `TProgressionTreeNode` | `ProgressionTreeNode` | Progression tree row shape |
+| `TTraditionNode` | `TraditionNode` | Tradition row shape |
+| `TModifierNode` | `ModifierNode` | Modifier node shape |
+| `TIconDefinitionNode` | `IconDefinitionNode` | Icon definition row shape |
+
+## How the type system enforces correctness
+
+### Required fields are compile-time errors
+
+```typescript
+// Error: Property 'unitType' is missing
+const unit = new UnitBuilder({
+  unit: { baseMoves: 2 }, // ❌ unitType is required
+});
+
+// Correct:
+const unit = new UnitBuilder({
+  unit: { unitType: 'UNIT_CUSTOM', baseMoves: 2 }, // ✓
+});
+```
+
+### Constants prevent invalid values
+
+```typescript
+import { COLLECTION } from '@mateicanavra/civ7-sdk';
+
+// Error: 'COLLECTION_INVALID' is not assignable to type
+const mod = new ModifierBuilder({
+  modifier: { collection: 'COLLECTION_INVALID' }, // ❌
+});
+
+// Correct:
+const mod = new ModifierBuilder({
+  modifier: { collection: COLLECTION.OWNER }, // ✓
+});
+```
+
+### Null safety on optional fields
+
+All optional node properties are typed as `T | null` rather than `T | undefined`. Properties set to `null` are automatically excluded from XML output.
+
+```typescript
+const unit = new UnitNode({
+  unitType: 'UNIT_CUSTOM',
+  baseMoves: 2,
+  traitType: null, // explicitly null — omitted from output XML
+});
+```

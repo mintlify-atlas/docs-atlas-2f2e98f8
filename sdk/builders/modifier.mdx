@@ -1,0 +1,149 @@
+---
+title: "ModifierBuilder"
+description: "Create game effect modifiers and attach them to civilizations, traditions, or unique quarters."
+---
+
+`ModifierBuilder` wraps the `ModifierNode` (game effects XML) and makes it easy to create and attach modifiers to other builders via their `bind()` method.
+
+<Note>
+  `ModifierBuilder.build()` returns an empty array — modifiers do not produce standalone files. They are always written through the parent builder they are bound to (civilization, tradition, or unique quarter).
+</Note>
+
+## Import
+
+```typescript
+import {
+  ModifierBuilder,
+  COLLECTION,
+  EFFECT,
+  REQUIREMENT,
+} from '@mateicanavra/civ7-sdk';
+```
+
+## Constructor
+
+```typescript
+new ModifierBuilder(options?: Partial<ModifierBuilderOptions>)
+```
+
+<ParamField body="modifier" type="Partial<TModifierNode>">
+  The modifier configuration.
+
+  <Expandable title="modifier fields">
+    <ParamField body="id" type="string">
+      Unique modifier ID. Auto-generated as `MOD_<UUID>` if omitted.
+    </ParamField>
+    <ParamField body="collection" type="TObjectValues<typeof COLLECTION>" default="COLLECTION.OWNER">
+      Which entities are affected. Common values: `COLLECTION.OWNER`, `COLLECTION.ALL_CITIES`, `COLLECTION.PLAYER_CITIES`.
+    </ParamField>
+    <ParamField body="effect" type="TObjectValues<typeof EFFECT>" default="EFFECT.CITY_ADJUST_YIELD_PER_RESOURCE">
+      The game effect to apply. Use `EFFECT.*` constants — there are 550+ options.
+    </ParamField>
+    <ParamField body="arguments" type="TArgumentNode[]" default="[]">
+      Effect arguments as `{ name: string, value: string | number }` pairs.
+
+      ```typescript
+      arguments: [
+        { name: 'YieldType', value: 'YIELD_GOLD' },
+        { name: 'Amount', value: 5 },
+      ]
+      ```
+    </ParamField>
+    <ParamField body="requirements" type="TPartialRequired<TModifierRequirementNode, 'type'>[]" default="[]">
+      Subject requirements that must be met. Uses `REQUIREMENT.*` constants.
+
+      ```typescript
+      requirements: [{
+        type: REQUIREMENT.CITY_IS_CITY,
+      }]
+      ```
+    </ParamField>
+    <ParamField body="permanent" type="boolean | null" default="null">
+      Whether the effect persists permanently.
+    </ParamField>
+    <ParamField body="runOnce" type="boolean | null" default="null">
+      Whether the modifier fires only once.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="isDetached" type="boolean" default="false">
+  When `true`, the modifier is added to the game effects file only — no `TraitModifier`, `TraditionModifier`, or `UniqueQuarterModifier` row is created. Use this for modifiers that are referenced manually.
+</ParamField>
+
+<ParamField body="localizations" type="Partial<TModifierLocalization>[]" default="[]">
+  Localized strings appended to the modifier node.
+
+  ```typescript
+  localizations: [{ description: '+5 Gold from trade routes' }]
+  ```
+</ParamField>
+
+## Usage pattern
+
+Create a `ModifierBuilder` and pass it to a parent builder's `bind()` call:
+
+```typescript
+import {
+  CivilizationBuilder,
+  ModifierBuilder,
+  ACTION_GROUP_BUNDLE,
+  COLLECTION,
+  EFFECT,
+  TRAIT,
+  TAG_TRAIT,
+} from '@mateicanavra/civ7-sdk';
+
+const goldModifier = new ModifierBuilder({
+  modifier: {
+    collection: COLLECTION.OWNER,
+    effect: EFFECT.PLAYER_ADJUST_CONSTRUCTIBLE_YIELD,
+    arguments: [
+      { name: 'Tag', value: 'GOLD' },
+      { name: 'YieldType', value: 'YIELD_GOLD' },
+      { name: 'Amount', value: 5 },
+    ],
+  },
+  localizations: [{ description: '+5 Gold from markets' }],
+});
+
+const civilization = new CivilizationBuilder({
+  actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+  civilization: {
+    civilizationType: 'CIVILIZATION_GONDOR',
+    domain: 'AntiquityAgeCivilizations',
+  },
+  civilizationTraits: [TRAIT.ANTIQUITY_CIV],
+  civilizationTags: [TAG_TRAIT.ECONOMIC],
+  localizations: [{ name: 'Gondor' }],
+});
+
+civilization.bind([goldModifier]);
+```
+
+## Binding contexts
+
+`ModifierBuilder` can be passed to the `bind()` method of:
+
+| Parent builder | Where modifier ends up |
+|---|---|
+| `CivilizationBuilder` | `game-effects.xml` + `TraitModifiers` in `current.xml` |
+| `TraditionBuilder` | `game-effects.xml` + `TraditionModifiers` in `current.xml` |
+| `UniqueQuarterBuilder` | `game-effects.xml` + `UniqueQuarterModifiers` + `GameModifiers` in `always.xml` |
+| `ProgressionTreeNodeBuilder` | `game-effects.xml` associated with the tree |
+
+## Effect reference
+
+The `EFFECT` constant contains 550+ game effect identifiers. Import it and use IntelliSense to explore:
+
+```typescript
+import { EFFECT } from '@mateicanavra/civ7-sdk';
+
+// Common effects
+EFFECT.PLAYER_ADJUST_CONSTRUCTIBLE_YIELD   // Adjust yields from buildings/improvements
+EFFECT.CITY_ADJUST_YIELD                   // Adjust city base yield
+EFFECT.CITY_ADJUST_YIELD_PER_RESOURCE      // Yield per resource
+EFFECT.PLAYER_REVEAL_CULTURE_TREE          // Reveal a progression tree
+```
+
+See [Game Constants](/sdk/constants/overview) for the full list.

@@ -1,0 +1,211 @@
+---
+title: "ConstructibleBuilder"
+description: "Create buildings and improvements with yield changes, valid placement rules, and adjacency bonuses."
+---
+
+`ConstructibleBuilder` handles both buildings (placed in districts) and improvements (placed on tiles). The type is inferred from the `constructibleType` prefix: `BUILDING_*` produces a building, `IMPROVEMENT_*` produces an improvement.
+
+## Import
+
+```typescript
+import {
+  ConstructibleBuilder,
+  ACTION_GROUP_BUNDLE,
+  CONSTRUCTIBLE_TYPE_TAG,
+  DISTRICT,
+  YIELD,
+} from '@mateicanavra/civ7-sdk';
+```
+
+## Constructor
+
+```typescript
+new ConstructibleBuilder(options?: Partial<ConstructibleBuilderOptions>)
+```
+
+<ParamField body="actionGroupBundle" type="ActionGroupBundle" required>
+  Which age this constructible belongs to.
+</ParamField>
+
+<ParamField body="constructible" type="TPartialRequired<TConstructibleNode, 'constructibleType'>" required>
+  Core `Constructibles` row. `constructibleType` is required.
+
+  <Expandable title="constructible fields">
+    <ParamField body="constructibleType" type="string" required>
+      Primary key. Prefix determines type: `BUILDING_*` or `IMPROVEMENT_*`.
+    </ParamField>
+    <ParamField body="cost" type="number">
+      Production cost.
+    </ParamField>
+    <ParamField body="purchaseCost" type="number">
+      Gold purchase cost.
+    </ParamField>
+    <ParamField body="traitType" type="string">
+      Restricts to civilizations with this trait (set automatically by `CivilizationBuilder.bind()`).
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="building" type="Partial<TBuildingNode> | null" default="null">
+  Set to `{}` to mark as a building. Auto-set when `constructibleType` starts with `BUILDING_`.
+</ParamField>
+
+<ParamField body="improvement" type="Partial<TImprovementNode> | null" default="null">
+  Set to `{}` to mark as an improvement. Auto-set when `constructibleType` starts with `IMPROVEMENT_`.
+</ParamField>
+
+<ParamField body="typeTags" type="TObjectValues<typeof CONSTRUCTIBLE_TYPE_TAG>[]" default="[]">
+  Type tags controlling availability and category. Common values:
+  - `CONSTRUCTIBLE_TYPE_TAG.AGELESS` — available in all ages
+  - `CONSTRUCTIBLE_TYPE_TAG.PRODUCTION` — production category
+  - `CONSTRUCTIBLE_TYPE_TAG.FOOD` — food category
+</ParamField>
+
+<ParamField body="constructibleValidDistricts" type="TObjectValues<typeof DISTRICT>[]" default="[]">
+  Which district types this constructible can be built in.
+
+  ```typescript
+  constructibleValidDistricts: [DISTRICT.URBAN, DISTRICT.CITY_CENTER]
+  ```
+</ParamField>
+
+<ParamField body="constructibleValidBiomes" type="TObjectValues<typeof BIOME>[]" default="[]">
+  Valid biome types (improvements only).
+</ParamField>
+
+<ParamField body="constructibleValidTerrains" type="TObjectValues<typeof TERRAIN>[]" default="[]">
+  Valid terrain types (improvements only).
+</ParamField>
+
+<ParamField body="constructibleValidFeatures" type="TObjectValues<typeof FEATURE>[]" default="[]">
+  Valid feature types (improvements only).
+</ParamField>
+
+<ParamField body="constructibleValidResources" type="TPartialRequired<TConstructibleValidResourceNode, 'resourceType'>[]" default="[]">
+  Valid resource types (improvements only).
+</ParamField>
+
+<ParamField body="constructibleYieldChanges" type="Partial<TConstructibleYieldChangeNode>[]" default="[]">
+  Yield changes granted by this constructible.
+
+  ```typescript
+  constructibleYieldChanges: [
+    { yieldType: YIELD.GOLD, yieldChange: 20 },
+    { yieldType: YIELD.SCIENCE, yieldChange: 5 },
+  ]
+  ```
+</ParamField>
+
+<ParamField body="constructibleMaintenances" type="Partial<TConstructibleMaintenanceNode>[]" default="[]">
+  Maintenance costs per turn.
+
+  ```typescript
+  constructibleMaintenances: [
+    { yieldType: YIELD.PRODUCTION, amount: 1 },
+  ]
+  ```
+</ParamField>
+
+<ParamField body="adjacencyYieldChanges" type="Partial<TAdjacencyYieldChangeNode>[]" default="[]">
+  Adjacency yield bonuses.
+</ParamField>
+
+<ParamField body="districtFreeConstructibles" type="TPartialRequired<TDistrictFreeConstructibleNode, 'districtType'>[]" default="[]">
+  Constructibles granted for free when a district is built.
+</ParamField>
+
+<ParamField body="constructiblePlunders" type="TPartialRequired<ConstructiblePlunderNode, 'plunderType'>[]" default="[]">
+  Plunder types dropped when this constructible is pillaged.
+</ParamField>
+
+<ParamField body="icon" type="TPartialRequired<TIconDefinitionNode, 'path'>">
+  Icon for the constructible. Defaults to `'fs://game/civ_sym_han'`.
+</ParamField>
+
+<ParamField body="localizations" type="TConstructibleLocalization[]" default="[]">
+  Localized name, description, and tooltip.
+
+  ```typescript
+  localizations: [{
+    name: 'Custom Granary',
+    description: 'Stores surplus grain.',
+    tooltip: '+20 Gold per turn.',
+  }]
+  ```
+</ParamField>
+
+## Generated files
+
+Files are written under `/constructibles/<kebab-case-type>/`:
+
+| File | Content | Action group |
+|---|---|---|
+| `always.xml` | Types, Buildings/Improvements, Constructibles, TypeTags, ValidDistricts, Yields | Always |
+| `localization.xml` | EnglishText | Shell + always |
+| `icons.xml` | IconDefinitions | Shell + always |
+
+## Example
+
+```typescript
+import {
+  Mod,
+  ConstructibleBuilder,
+  ACTION_GROUP_BUNDLE,
+  CONSTRUCTIBLE_TYPE_TAG,
+  DISTRICT,
+  YIELD,
+} from '@mateicanavra/civ7-sdk';
+
+const mod = new Mod({ id: 'my-mod', version: '1' });
+
+const granary = new ConstructibleBuilder({
+  actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+  constructible: {
+    constructibleType: 'BUILDING_CUSTOM_GRANARY',
+  },
+  building: {},
+  typeTags: [
+    CONSTRUCTIBLE_TYPE_TAG.AGELESS,
+    CONSTRUCTIBLE_TYPE_TAG.FOOD,
+  ],
+  constructibleValidDistricts: [
+    DISTRICT.URBAN,
+    DISTRICT.CITY_CENTER,
+  ],
+  constructibleYieldChanges: [
+    { yieldType: YIELD.FOOD, yieldChange: 4 },
+    { yieldType: YIELD.GOLD, yieldChange: 2 },
+  ],
+  constructibleMaintenances: [
+    { yieldType: YIELD.PRODUCTION, amount: 1 },
+  ],
+  localizations: [{
+    name: 'Custom Granary',
+    description: 'A granary that provides extra food.',
+    tooltip: '+4 Food, +2 Gold per turn.',
+  }],
+});
+
+mod.add([granary]).build('./my-mod');
+```
+
+## Improvement example
+
+```typescript
+const farm = new ConstructibleBuilder({
+  actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+  constructible: {
+    constructibleType: 'IMPROVEMENT_CUSTOM_FARM',
+  },
+  improvement: {},
+  constructibleValidTerrains: [TERRAIN.GRASS, TERRAIN.PLAINS],
+  constructibleYieldChanges: [
+    { yieldType: YIELD.FOOD, yieldChange: 2 },
+  ],
+  localizations: [{ name: 'Custom Farm', description: 'A farm tile improvement.' }],
+});
+```
+
+<Note>
+  The `building` or `improvement` field must be explicitly set to `{}` only if the `constructibleType` prefix would not auto-detect correctly. In most cases, the prefix alone is sufficient.
+</Note>

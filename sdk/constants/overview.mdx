@@ -1,0 +1,141 @@
+---
+title: "Game Constants"
+description: "Strongly-typed constants for every unit type, ability, effect, terrain, resource, and more."
+---
+
+The SDK ships a comprehensive set of game constants that mirror the game's internal identifier strings. Using constants instead of raw strings gives you IntelliSense autocomplete, compile-time typo detection, and easier refactoring.
+
+## Import pattern
+
+All constants are exported from the package root:
+
+```typescript
+import {
+  UNIT,
+  UNIT_CLASS,
+  ABILITY,
+  EFFECT,
+  COLLECTION,
+  TERRAIN,
+  RESOURCE,
+  BIOME,
+  DISTRICT,
+  FEATURE,
+  YIELD,
+  AGE,
+  KIND,
+  TRAIT,
+  TAG_TRAIT,
+  ACTION_GROUP_BUNDLE,
+  ACTION_GROUP,
+  ACTION_GROUP_ACTION,
+  REQUIREMENT,
+  ADVISORY,
+} from '@mateicanavra/civ7-sdk';
+```
+
+## Available constants
+
+### Unit constants
+
+| Constant | Description |
+|---|---|
+| `UNIT` | All base game unit types — `UNIT.SCOUT`, `UNIT.ARCHER`, `UNIT.SETTLER`, `UNIT.ARMY_COMMANDER` |
+| `UNIT_CLASS` | Unit class tags for AI and ability lookup — `UNIT_CLASS.RECON`, `UNIT_CLASS.MELEE`, `UNIT_CLASS.RANGED` |
+| `UNIT_MOVEMENT_CLASS` | Movement class identifiers |
+| `UNIT_CULTURE` | Visual art unit culture identifiers |
+
+### Civilization constants
+
+| Constant | Description |
+|---|---|
+| `TRAIT` | Civilization and leader trait types |
+| `TAG_TRAIT` | Civilization domain tags — `TAG_TRAIT.CULTURAL`, `TAG_TRAIT.ECONOMIC`, `TAG_TRAIT.MILITARISTIC` |
+| `CIVILIZATION_DOMAIN` | Domain strings for shell and age organization |
+| `AGE` | Age identifiers — `AGE.ANTIQUITY`, `AGE.EXPLORATION`, `AGE.MODERN` |
+| `BUILDING_CULTURES` | Visual art building culture identifiers |
+
+### Game effects
+
+| Constant | Description |
+|---|---|
+| `EFFECT` | 550+ game effect identifiers used in modifiers |
+| `COLLECTION` | Modifier collection types — `COLLECTION.OWNER`, `COLLECTION.ALL_CITIES` |
+| `REQUIREMENT` | Requirement type identifiers — `REQUIREMENT.CITY_IS_CITY`, `REQUIREMENT.CITY_HAS_UNIQUE_QUARTER` |
+| `REQUIREMENT_SET` | Predefined requirement set types |
+| `ABILITY` | Unit and civilization ability types |
+| `ADVISORY` | Advisor category types for progression tree nodes |
+
+### World constants
+
+| Constant | Description |
+|---|---|
+| `TERRAIN` | Terrain type identifiers — `TERRAIN.GRASS`, `TERRAIN.PLAINS`, `TERRAIN.DESERT` |
+| `BIOME` | Biome type identifiers |
+| `FEATURE` | Feature type identifiers (forests, rainforests, oases) |
+| `FEATURE_CLASS` | Feature class identifiers |
+| `RESOURCE` | Resource type identifiers |
+| `RESOURCE_CLASS` | Resource class identifiers |
+| `YIELD` | Yield type identifiers — `YIELD.FOOD`, `YIELD.PRODUCTION`, `YIELD.GOLD`, `YIELD.SCIENCE` |
+| `DISTRICT` | District type identifiers — `DISTRICT.URBAN`, `DISTRICT.CITY_CENTER` |
+| `FERTILITY` | Fertility type identifiers |
+
+### Constructible constants
+
+| Constant | Description |
+|---|---|
+| `CONSTRUCTIBLE_TYPE_TAG` | Constructible type tags — `CONSTRUCTIBLE_TYPE_TAG.AGELESS`, `CONSTRUCTIBLE_TYPE_TAG.PRODUCTION`, `CONSTRUCTIBLE_TYPE_TAG.FOOD` |
+| `CONSTRUCTIBLE_CLASS` | Constructible class identifiers |
+| `PLUNDER` | Plunder type identifiers |
+
+### Action group constants
+
+| Constant | Description |
+|---|---|
+| `ACTION_GROUP` | Pre-built `ActionGroupNode` instances — `ACTION_GROUP.SHELL`, `ACTION_GROUP.AGE_ANTIQUITY_CURRENT` |
+| `ACTION_GROUP_ACTION` | Action type strings — `UPDATE_DATABASE`, `UPDATE_TEXT`, `UPDATE_ICONS`, `IMPORT_FILES`, `UPDATE_VISUAL_REMAPS` |
+| `ACTION_GROUP_BUNDLE` | Pre-assembled `ActionGroupBundle` objects keyed by age — `ACTION_GROUP_BUNDLE.AGE_ANTIQUITY` |
+
+### Other constants
+
+| Constant | Description |
+|---|---|
+| `KIND` | Entity kind identifiers — `KIND.UNIT`, `KIND.CIVILIZATION`, `KIND.CONSTRUCTIBLE` |
+| `DOMAIN` | Movement domain identifiers — `DOMAIN.LAND`, `DOMAIN.SEA`, `DOMAIN.AIR` |
+| `CORE_CLASS` | Unit core class identifiers |
+| `FORMATION_CLASS` | Unit formation class identifiers |
+| `SYSTEM` | System identifiers |
+| `ICON` | Icon identifiers |
+| `LANGUAGE` | Language tag identifiers for localization |
+| `COLLECTION` | Modifier collection scope constants |
+
+## IntelliSense usage
+
+All constants are typed as `as const` objects, so TypeScript will infer the literal string value and provide autocomplete:
+
+```typescript
+import { EFFECT, COLLECTION, REQUIREMENT } from '@mateicanavra/civ7-sdk';
+
+const modifier = new ModifierBuilder({
+  modifier: {
+    collection: COLLECTION.OWNER,           // 'COLLECTION_OWNER'
+    effect: EFFECT.CITY_ADJUST_YIELD,        // 'EFFECT_CITY_ADJUST_YIELD'
+    requirements: [{
+      type: REQUIREMENT.CITY_IS_CITY,        // 'REQUIREMENT_CITY_IS_CITY'
+    }],
+  },
+});
+```
+
+You can also use the values as types:
+
+```typescript
+import { YIELD, TObjectValues } from '@mateicanavra/civ7-sdk';
+
+type YieldType = TObjectValues<typeof YIELD>;
+// 'YIELD_FOOD' | 'YIELD_PRODUCTION' | 'YIELD_GOLD' | ...
+```
+
+<Tip>
+  Use your editor's "Go to Definition" on any constant to see all available values in the source file.
+</Tip>

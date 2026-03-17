@@ -1,0 +1,172 @@
+---
+title: "Nodes (Low-Level API)"
+description: "Work directly with XML node classes for fine-grained control over generated mod output."
+---
+
+Builders are the recommended way to create mods, but every builder is built on top of **nodes** — low-level classes that map 1:1 to the game's XML elements. You can use nodes directly when you need full control over the output.
+
+## When to use nodes vs builders
+
+<Tabs>
+  <Tab title="Use builders (recommended)">
+    - You are creating standard mod entities (units, civilizations, buildings)
+    - You want automatic file organization and action group assignment
+    - You want localization, icon, and type registration handled for you
+    - You are iterating quickly and want less boilerplate
+  </Tab>
+  <Tab title="Use nodes directly">
+    - You need to produce XML structures not covered by any existing builder
+    - You want to compose custom `DatabaseNode` objects with precise control
+    - You are extending or patching an existing builder's internal `_current` database node
+    - You are building a new builder and need to understand the underlying model
+  </Tab>
+</Tabs>
+
+## Key node classes
+
+### DatabaseNode
+
+`DatabaseNode` is the root container that serializes to the game's `<Database>` XML element. All other data nodes are collected into arrays on a `DatabaseNode` instance.
+
+```typescript
+const database = new DatabaseNode({
+  types: [...],
+  units: [...],
+  typeTags: [...],
+  // ... 60+ more arrays
+});
+
+database.toXmlElement(); // Returns jstoxml-compatible object
+```
+
+### TypeNode
+
+Every game entity must have a corresponding `TypeNode` that registers it in the `Types` table with a `KIND_*` kind.
+
+```typescript
+import { TypeNode, KIND } from '@mateicanavra/civ7-sdk';
+
+const type = new TypeNode({
+  type: 'UNIT_CUSTOM_SCOUT',
+  kind: KIND.UNIT,
+});
+```
+
+### UnitNode
+
+Maps to the `Units` table row.
+
+```typescript
+import { UnitNode } from '@mateicanavra/civ7-sdk';
+
+const unit = new UnitNode({
+  unitType: 'UNIT_CUSTOM_SCOUT',
+  baseMoves: 2,
+  baseSightRange: 10,
+});
+```
+
+### ModifierNode
+
+Maps to the game effects `Modifier` XML element.
+
+```typescript
+import { ModifierNode, COLLECTION, EFFECT } from '@mateicanavra/civ7-sdk';
+
+const modifier = new ModifierNode({
+  id: 'MOD_GONDOR_GOLD_BONUS',
+  collection: COLLECTION.OWNER,
+  effect: EFFECT.CITY_ADJUST_YIELD,
+  arguments: [
+    { name: 'YieldType', value: 'YIELD_GOLD' },
+    { name: 'Amount', value: 5 },
+  ],
+});
+```
+
+### Other notable nodes
+
+| Node | Maps to |
+|---|---|
+| `TypeTagNode` | `TypeTags` table — unit class / type tag associations |
+| `TagNode` | `Tags` table — tag category definitions |
+| `UnitStatNode` | `Unit_Stats` table |
+| `UnitCostNode` | `Unit_Costs` table |
+| `UnitReplaceNode` | `UnitReplaces` table |
+| `VisualRemapNode` | `VisualRemaps` table |
+| `TraitNode` | `Traits` table |
+| `CivilizationNode` | `Civilizations` table |
+| `ProgressionTreeNode` | `ProgressionTrees` table |
+| `TraditionNode` | `Traditions` table |
+| `UniqueQuarterNode` | `UniqueQuarters` table |
+| `IconDefinitionNode` | `IconDefinitions` table |
+| `EnglishTextNode` | `EnglishText` localization table |
+
+## Full low-level example
+
+This example recreates the basic unit quickstart without using `UnitBuilder`:
+
+```typescript
+import {
+  Mod,
+  UnitNode,
+  DatabaseNode,
+  TypeNode,
+  XmlFile,
+  KIND,
+  ACTION_GROUP,
+  ACTION_GROUP_ACTION,
+} from '@mateicanavra/civ7-sdk';
+
+const mod = new Mod({
+  id: 'manual-mod',
+  version: '1.0.0',
+});
+
+// 1. Create the unit node
+const unit = new UnitNode({
+  unitType: 'UNIT_CUSTOM_SCOUT',
+  baseMoves: 2,
+  baseSightRange: 10,
+});
+
+// 2. Wrap in a DatabaseNode
+const database = new DatabaseNode({
+  types: [
+    new TypeNode({ type: unit.unitType, kind: KIND.UNIT }),
+  ],
+  units: [unit],
+});
+
+// 3. Create an XmlFile with the correct action group
+const unitFile = new XmlFile({
+  path: `/units/${unit.unitType}/`,
+  name: 'current.xml',
+  content: database.toXmlElement(),
+  actionGroups: [ACTION_GROUP.AGE_ANTIQUITY_CURRENT],
+  actionGroupActions: [ACTION_GROUP_ACTION.UPDATE_DATABASE],
+});
+
+// 4. Add to mod and build
+mod.addFiles([unitFile]).build('./manual-mod');
+```
+
+## How nodes relate to XML
+
+Every node class implements a `toXmlElement()` method that returns a `jstoxml`-compatible object. `DatabaseNode.toXmlElement()` collects all populated arrays and nests them under a `<Database>` root element:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<Database>
+  <Types>
+    <Row Type="UNIT_CUSTOM_SCOUT" Kind="KIND_UNIT" />
+  </Types>
+  <Units>
+    <Row UnitType="UNIT_CUSTOM_SCOUT" BaseMoves="2" BaseSightRange="10" />
+  </Units>
+</Database>
+```
+
+<Note>
+  Null property values are automatically omitted from the XML output. You only need to set the fields that differ from defaults.
+</Note>

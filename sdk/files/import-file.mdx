@@ -1,0 +1,127 @@
+---
+title: "ImportFileBuilder"
+description: "Copy SQL files and custom assets such as icons and textures into the mod output."
+---
+
+`ImportFileBuilder` (and the underlying `ImportFile` class) handles file copy operations — importing custom assets like PNG icons, DDS textures, or SQL scripts into the mod's output directory.
+
+## Import
+
+```typescript
+import { ImportFileBuilder, ACTION_GROUP_BUNDLE } from '@mateicanavra/civ7-sdk';
+```
+
+## Constructor
+
+```typescript
+new ImportFileBuilder(options?: Partial<ImportFileBuilderOptions>)
+```
+
+<ParamField body="content" type="string" default="''">
+  Absolute or relative path to the **source** file on disk.
+
+  ```typescript
+  content: './assets/civ-icon.png'
+  ```
+
+  If the file does not exist at build time, the builder silently skips it and returns an empty file list.
+</ParamField>
+
+<ParamField body="name" type="string" default="''">
+  The **destination** file name in the output. If empty, defaults to the source file's base name.
+
+  ```typescript
+  name: 'civ_sym_gondor'
+  ```
+
+  <Note>
+    When importing icons used via `fs://game/<mod-id>/<name>` paths, omit the extension — the game resolves the format automatically.
+  </Note>
+</ParamField>
+
+<ParamField body="actionGroupBundle" type="ActionGroupBundle">
+  Which age's action groups to use. Defaults to the base `ActionGroupBundle`.
+</ParamField>
+
+<ParamField body="actionGroups" type="ActionGroupNode[]" default="[]">
+  Override the action groups. When empty, defaults to `[actionGroupBundle.shell, actionGroupBundle.always]`.
+</ParamField>
+
+<ParamField body="actionGroupActions" type="TObjectValues<typeof ACTION_GROUP_ACTION>[]" default="[]">
+  Override the action group actions. When empty, defaults to `[ACTION_GROUP_ACTION.IMPORT_FILES]`.
+</ParamField>
+
+## Output
+
+The imported file is written to `/imports/<name>` within the mod output directory.
+
+## Example: import a civilization icon
+
+```typescript
+import {
+  Mod,
+  CivilizationBuilder,
+  ImportFileBuilder,
+  ACTION_GROUP_BUNDLE,
+  TAG_TRAIT,
+} from '@mateicanavra/civ7-sdk';
+
+const mod = new Mod({ id: 'gondor-mod', version: '1' });
+
+// Import the icon file
+const civilizationIcon = new ImportFileBuilder({
+  actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+  content: './assets/civ-icon.png',
+  name: 'civ_sym_gondor',
+});
+
+// Reference it in the civilization's icon path
+const civilization = new CivilizationBuilder({
+  actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+  civilization: {
+    civilizationType: 'CIVILIZATION_GONDOR',
+    domain: 'AntiquityAgeCivilizations',
+  },
+  civilizationTags: [TAG_TRAIT.CULTURAL],
+  icon: {
+    path: `fs://game/${mod.id}/${civilizationIcon.name}`,
+  },
+  localizations: [{ name: 'Gondor' }],
+});
+
+mod.add([civilization, civilizationIcon]).build('./gondor-mod');
+```
+
+## Example: import a unit icon
+
+```typescript
+const unitIcon = new ImportFileBuilder({
+  actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+  content: './assets/unit-icon.png',
+  name: 'unit_custom_scout',
+});
+
+const unit = new UnitBuilder({
+  actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+  unit: { unitType: 'UNIT_CUSTOM_SCOUT', baseMoves: 2, baseSightRange: 2 },
+  icon: { path: `fs://game/${mod.id}/${unitIcon.name}` },
+  localizations: [{ name: 'Custom Scout' }],
+});
+
+mod.add([unit, unitIcon]).build('./my-mod');
+```
+
+## Example: import a SQL file
+
+```typescript
+const sqlPatch = new ImportFileBuilder({
+  content: './patches/balance.sql',
+  // name defaults to 'balance.sql'
+});
+
+mod.add([sqlPatch]).build('./my-mod');
+```
+
+<Warning>
+  The source path in `content` is evaluated relative to the current working directory when `Mod.build()` is called, not relative to the source file. Run your build script from the project root to avoid path issues.
+</Warning>

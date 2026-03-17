@@ -1,0 +1,74 @@
+---
+title: "SDK Overview"
+description: "Programmatically generate Civilization VII mods using strongly-typed TypeScript builders."
+---
+
+The Civ7 Modding SDK (`@mateicanavra/civ7-sdk`) is a TypeScript library that lets you define mod entities — units, civilizations, buildings, progression trees, and more — using a fluent builder API. Builders convert your configuration into XML files and a `.modinfo` manifest that the game loads directly.
+
+## Architecture
+
+```
+Builder  →  Nodes  →  XML Files  →  Mod Output
+```
+
+| Layer | Description |
+|---|---|
+| **Builders** | High-level API — configure game entities with typed options, call `.build()` |
+| **Nodes** | Low-level XML element representations; builders create these internally |
+| **XML Files** | Serialized XML written to disk with correct action group bindings |
+| **Mod Output** | Complete mod folder — `.modinfo` + organized XML files ready for the game |
+
+## Installation
+
+```bash
+bun add @mateicanavra/civ7-sdk
+```
+
+## Available builders
+
+| Builder | Description |
+|---|---|
+| `Mod` | Root orchestrator — collects builders and writes the output folder |
+| `UnitBuilder` | Custom units with stats, costs, class tags, and visual remaps |
+| `CivilizationBuilder` | New civilizations with traits, start biases, and city names |
+| `ConstructibleBuilder` | Buildings and improvements with yields, valid districts, and adjacency bonuses |
+| `ProgressionTreeBuilder` | Civic and tech trees bound to civilizations |
+| `ModifierBuilder` | Game effects and modifiers — attach to civilizations, traditions, or quarters |
+| `TraditionBuilder` | Policy cards with modifier effects |
+| `UniqueQuarterBuilder` | Unique city districts combining two buildings |
+| `ImportFileBuilder` | Copy SQL files and custom assets (icons, textures) into the mod |
+
+<CardGroup cols={2}>
+  <Card title="Mod" icon="box" href="/sdk/builders/mod">
+    Create the mod root, add builders, and write the output.
+  </Card>
+  <Card title="UnitBuilder" icon="shield" href="/sdk/builders/unit">
+    Define custom units with full stat and visual configuration.
+  </Card>
+  <Card title="CivilizationBuilder" icon="landmark" href="/sdk/builders/civilization">
+    Build civilizations with traits, city names, and start biases.
+  </Card>
+  <Card title="ConstructibleBuilder" icon="building" href="/sdk/builders/constructible">
+    Create buildings and improvements with yield changes.
+  </Card>
+  <Card title="ProgressionTreeBuilder" icon="sitemap" href="/sdk/builders/progression-tree">
+    Define civic and tech trees for your civilization.
+  </Card>
+  <Card title="ModifierBuilder" icon="bolt" href="/sdk/builders/modifier">
+    Attach game effects to civilizations, traditions, and quarters.
+  </Card>
+  <Card title="TraditionBuilder" icon="scroll" href="/sdk/builders/tradition">
+    Create policy cards with modifier bindings.
+  </Card>
+  <Card title="UniqueQuarterBuilder" icon="city" href="/sdk/builders/unique-quarter">
+    Design unique city districts composed of two buildings.
+  </Card>
+</CardGroup>
+
+## Low-level API
+
+For fine-grained control, you can work directly with node classes and `XmlFile` without using builders. See [Nodes (Low-Level API)](/sdk/nodes/overview) for details.
+
+## Constants and types
+
+The SDK ships comprehensive game constants (unit types, abilities, effects, terrains, and more) with full IntelliSense support. See [Game Constants](/sdk/constants/overview) and [TypeScript Types](/sdk/types/overview).

@@ -1,80 +1,126 @@
 ---
 title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+description: "Install the toolkit, pull game data, and build your first Civilization VII mod in about five minutes."
 ---
 
-## Get started in three steps
+This guide walks you through the full flow from a fresh clone to a working mod file. You'll install dependencies, link the CLI, pull official game resources, and use the SDK to generate a custom unit.
 
-Get your documentation site running locally and make your first customization.
+<Note>
+  Before you start, make sure you have **Node 22.14+**, **Bun**, and **Git** installed. See [Prerequisites](/installation/prerequisites) if you need help.
+</Note>
 
-### Step 1: Set up your local environment
+<Steps>
+  <Step title="Clone the repository">
+    Clone the repo and move into it:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    ```bash
+    git clone https://github.com/mateicanavra/civ7-modding-tools-fork.git
+    cd civ7-modding-tools-fork
+    ```
+  </Step>
 
-### Step 2: Deploy your changes
+  <Step title="Install dependencies and link the CLI">
+    Install all workspace dependencies and register the global `civ7` binary:
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    ```bash
+    bun install --frozen-lockfile
+    bun run link:cli
+    ```
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+    <Tip>
+      After this step, open a new terminal session (or run `source ~/.zshrc` / `source ~/.bashrc`) so that the `civ7` command is available on your `PATH`.
+    </Tip>
+  </Step>
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+  <Step title="Pull game data">
+    Use the CLI to extract official game resources from your local Civilization VII installation:
 
-### Step 3: Go live
+    ```bash
+    bun run refresh:data
+    ```
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+    This runs `civ7 data zip default` followed by `civ7 data unzip default`, placing the outputs in `.civ7/outputs/`. You only need to run this once.
+
+    <Note>
+      Make sure Civilization VII is installed on your machine. The CLI reads `installDir` from `civ.config.jsonc`. See [Configuration](/installation/configuration) for path details.
+    </Note>
+  </Step>
+
+  <Step title="Create a mod with the SDK">
+    Install the SDK in your mod workspace (or at the repo root for a quick test):
+
+    ```bash
+    bun add @mateicanavra/civ7-sdk
+    ```
+
+    Create a file called `my-mod.ts` with the following content. This example creates a custom scout unit that replaces the base-game scout, uses the army commander's visual, and adds localized text:
+
+    ```typescript
+    import { Mod, UnitBuilder, ACTION_GROUP_BUNDLE, UNIT_CLASS, UNIT } from '@mateicanavra/civ7-sdk';
+
+    const mod = new Mod({
+        id: 'my-first-mod',
+        version: '1.0.0',
+    });
+
+    const unit = new UnitBuilder({
+        actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+        typeTags: [UNIT_CLASS.RECON, UNIT_CLASS.RECON_ABILITIES],
+        unit: {
+            unitType: 'UNIT_CUSTOM_SCOUT',
+            baseMoves: 2,
+            baseSightRange: 10,
+        },
+        unitCost: { cost: 20 },
+        unitStat: { combat: 0 },
+        unitReplace: { replacesUnitType: UNIT.SCOUT },
+        visualRemap: { to: UNIT.ARMY_COMMANDER },
+        localizations: [
+            { name: 'Custom Scout', description: 'An enhanced scout unit' }
+        ],
+    });
+
+    mod.add([unit]).build('./my-mod');
+    ```
+  </Step>
+
+  <Step title="Build the mod">
+    Run the script to generate the mod folder:
+
+    ```bash
+    bun run my-mod.ts
+    ```
+
+    This produces a `my-mod/` directory containing the `.modinfo` file and all XML files the game needs — units, type tags, localizations, icon definitions, and visual remaps.
+  </Step>
+</Steps>
+
+## What just happened?
+
+Calling `mod.add([unit]).build('./my-mod')` triggers the `UnitBuilder` to:
+
+1. Generate a `TypeNode` and `UnitNode` for `UNIT_CUSTOM_SCOUT`
+2. Emit `current.xml` with unit stats, costs, and type tags
+3. Emit `visual-remap.xml` to give the unit the army commander's appearance
+4. Emit `localization.xml` with the English name and description
+5. Emit `icons.xml` with the icon definition
+6. Write a `.modinfo` file wiring all XML files to their correct action group load phases
+
+You never touched XML directly.
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
-
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="SDK builders" icon="hammer" href="/sdk/builders/mod">
+    Explore all available builders: civilizations, constructibles, progression trees, modifiers, and more.
+  </Card>
+  <Card title="Game constants" icon="database" href="/sdk/constants/overview">
+    Browse the full set of typed constants for units, abilities, terrains, resources, and effects.
+  </Card>
+  <Card title="CLI commands" icon="terminal" href="/cli/overview">
+    Learn how to crawl XML graphs, explore entity relationships, and manage resource archives.
+  </Card>
+  <Card title="TypeScript guides" icon="book-open" href="/guides/typescript/creating-units">
+    Step-by-step guides for creating units, civilizations, buildings, and more.
+  </Card>
 </CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>

@@ -1,0 +1,154 @@
+---
+title: "Mod"
+description: "The root orchestrator class that collects builders and writes the mod output folder."
+---
+
+The `Mod` class is the entry point for every mod. It holds a list of builders and raw files, then serializes everything — including the `.modinfo` manifest — when you call `build()`.
+
+## Import
+
+```typescript
+import { Mod } from '@mateicanavra/civ7-sdk';
+```
+
+## Constructor
+
+```typescript
+new Mod(options?: Partial<ModOptions>)
+```
+
+<ParamField body="id" type="string" default="'test'">
+  Unique mod identifier. Used as the `id` attribute in `.modinfo` and as the output folder name.
+</ParamField>
+
+<ParamField body="name" type="string" default="'test'">
+  Human-readable mod name shown in the game's mod manager.
+</ParamField>
+
+<ParamField body="version" type="string | number" default="1">
+  Mod version string or number.
+</ParamField>
+
+<ParamField body="description" type="string">
+  Short description shown in the game's mod manager.
+</ParamField>
+
+<ParamField body="authors" type="string">
+  Mod author(s) attribution string.
+</ParamField>
+
+<ParamField body="affectsSavedGames" type="boolean" default="true">
+  Whether this mod affects save game compatibility. Set to `false` for cosmetic-only mods.
+</ParamField>
+
+## Methods
+
+### `add()`
+
+Add one or more builders to the mod.
+
+```typescript
+add(data: BaseBuilder | BaseBuilder[]): this
+```
+
+Returns `this` for chaining.
+
+### `addFiles()`
+
+Add one or more raw file objects (e.g., `XmlFile`, `ImportFile`) directly, bypassing builders.
+
+```typescript
+addFiles(data: BaseFile | BaseFile[]): this
+```
+
+Returns `this` for chaining.
+
+### `build()`
+
+Serialize all builders and files to disk. Creates the output directory, writes every XML file, and generates the `.modinfo` manifest.
+
+```typescript
+build(dist?: string, clear?: boolean): []
+```
+
+<ParamField body="dist" type="string" default="'./dist'">
+  Output directory path.
+</ParamField>
+
+<ParamField body="clear" type="boolean" default="true">
+  When `true`, deletes and recreates the output directory before writing. Set to `false` to merge with an existing directory.
+</ParamField>
+
+## Example
+
+```typescript
+import { Mod, UnitBuilder, CivilizationBuilder, ACTION_GROUP_BUNDLE } from '@mateicanavra/civ7-sdk';
+
+const mod = new Mod({
+  id: 'gondor-mod',
+  name: 'Gondor Civilization',
+  version: '1.0.0',
+  description: 'Adds the Gondor civilization to Antiquity.',
+  authors: 'Modder',
+  affectsSavedGames: true,
+});
+
+const unit = new UnitBuilder({ /* ... */ });
+const civilization = new CivilizationBuilder({ /* ... */ });
+
+mod
+  .add([unit, civilization])
+  .build('./gondor-mod');
+```
+
+## Output structure
+
+`build()` produces the following layout:
+
+```
+gondor-mod/
+├── gondor-mod.modinfo          # ActionCriteria + ActionGroups manifest
+├── units/
+│   └── unit-custom-scout/
+│       ├── current.xml
+│       ├── visual-remap.xml
+│       ├── localization.xml
+│       └── icons.xml
+└── civilizations/
+    └── civilization-gondor/
+        ├── current.xml
+        ├── shell.xml
+        ├── legacy.xml
+        ├── game-effects.xml
+        ├── localization.xml
+        └── icons.xml
+```
+
+<Note>
+  Files with no content are automatically skipped — they do not appear in the output or in the `.modinfo`.
+</Note>
+
+## Using `addFiles()` with the low-level API
+
+If you build XML manually using nodes, pass the resulting `XmlFile` objects to `addFiles()`:
+
+```typescript
+import { Mod, XmlFile, DatabaseNode, UnitNode, TypeNode, KIND, ACTION_GROUP, ACTION_GROUP_ACTION } from '@mateicanavra/civ7-sdk';
+
+const mod = new Mod({ id: 'manual-mod', version: '1' });
+
+const database = new DatabaseNode({
+  types: [new TypeNode({ type: 'UNIT_CUSTOM', kind: KIND.UNIT })],
+  units: [new UnitNode({ unitType: 'UNIT_CUSTOM', baseMoves: 2, baseSightRange: 2 })],
+});
+
+const unitFile = new XmlFile({
+  path: '/units/unit-custom/',
+  name: 'current.xml',
+  content: database.toXmlElement(),
+  actionGroups: [ACTION_GROUP.AGE_ANTIQUITY_CURRENT],
+  actionGroupActions: [ACTION_GROUP_ACTION.UPDATE_DATABASE],
+});
+
+mod.addFiles([unitFile]).build('./manual-mod');
+```

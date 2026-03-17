@@ -1,0 +1,124 @@
+---
+title: "TraditionBuilder"
+description: "Create policy cards (traditions) with modifier effects."
+---
+
+`TraditionBuilder` creates policy cards — the `Traditions` table rows that players can adopt. Bind `ModifierBuilder` instances to the tradition to define what the policy does.
+
+## Import
+
+```typescript
+import {
+  TraditionBuilder,
+  ModifierBuilder,
+  COLLECTION,
+  EFFECT,
+} from '@mateicanavra/civ7-sdk';
+```
+
+## Constructor
+
+```typescript
+new TraditionBuilder(options?: Partial<TraditionBuilderOptions>)
+```
+
+<ParamField body="tradition" type="TPartialRequired<TTraditionNode, 'traditionType'>" required>
+  Core tradition row. `traditionType` is required.
+
+  <Expandable title="tradition fields">
+    <ParamField body="traditionType" type="string" required>
+      Primary key — e.g. `'TRADITION_GONDOR_STEWARDSHIP'`.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="localizations" type="Partial<TTraditionLocalization>[]" default="[]">
+  Localized name and description for the policy card.
+
+  ```typescript
+  localizations: [{
+    name: 'Gondor Stewardship',
+    description: 'Increases food output from all granaries.',
+  }]
+  ```
+</ParamField>
+
+## `bind()` method
+
+Attach modifiers and other builders to this tradition.
+
+```typescript
+bind(items: (ModifierBuilder | ConstructibleBuilder | UnitBuilder)[]): this
+```
+
+When a `ModifierBuilder` is bound:
+- Its modifier is added to this tradition's `game-effects.xml`
+- A `TraditionModifier` row links the modifier to the tradition (unless `isDetached` is set)
+- Localizations from the modifier are merged into this tradition's `localization.xml`
+
+## Generated files
+
+Files are written under `/traditions/<kebab-case-type>/`:
+
+| File | Content | Action group |
+|---|---|---|
+| `current.xml` | Types, Traditions, TraditionModifiers | Age current |
+| `game-effects.xml` | Modifiers (from bound builders) | Age current |
+| `localization.xml` | EnglishText | Shell + always |
+
+## Example
+
+```typescript
+import {
+  Mod,
+  TraditionBuilder,
+  ModifierBuilder,
+  ACTION_GROUP_BUNDLE,
+  COLLECTION,
+  EFFECT,
+} from '@mateicanavra/civ7-sdk';
+
+const mod = new Mod({ id: 'gondor-mod', version: '1' });
+
+const tradition = new TraditionBuilder({
+  tradition: {
+    traditionType: 'TRADITION_GONDOR_STEWARDSHIP',
+  },
+  localizations: [{
+    name: 'Gondor Stewardship',
+    description: 'Increases food output.',
+  }],
+}).bind([
+  new ModifierBuilder({
+    modifier: {
+      collection: COLLECTION.OWNER,
+      effect: EFFECT.PLAYER_ADJUST_CONSTRUCTIBLE_YIELD,
+      arguments: [
+        { name: 'Tag', value: 'FOOD' },
+        { name: 'YieldType', value: 'YIELD_FOOD' },
+        { name: 'Amount', value: 10 },
+      ],
+    },
+    localizations: [{ description: '+10 Food from all granaries' }],
+  }),
+]);
+
+mod.add([tradition]).build('./gondor-mod');
+```
+
+## Using traditions in a progression tree
+
+Traditions can be unlocked through progression tree nodes by passing them to `ProgressionTreeNodeBuilder.bind()`:
+
+```typescript
+import { ProgressionTreeNodeBuilder } from '@mateicanavra/civ7-sdk';
+
+const node = new ProgressionTreeNodeBuilder({
+  progressionTreeNode: { progressionTreeNodeType: 'NODE_CIVICS_GONDOR1' },
+  localizations: [{ name: 'Stewardship Node' }],
+}).bind([tradition]);
+```
+
+<Tip>
+  The `traditionType` is used as the localization key prefix. The SDK generates `LOC_TRADITION_GONDOR_STEWARDSHIP_NAME` and `LOC_TRADITION_GONDOR_STEWARDSHIP_DESCRIPTION` automatically.
+</Tip>

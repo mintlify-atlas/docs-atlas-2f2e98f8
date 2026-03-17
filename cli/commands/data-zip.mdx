@@ -1,0 +1,97 @@
+---
+title: "data zip"
+description: "Create a zip archive of Civilization VII game resources using a named profile."
+---
+
+## Synopsis
+
+```bash
+civ7 data zip [profile] [zipfile]
+```
+
+## Description
+
+`data zip` reads your `civ.config.jsonc` and creates a zip archive of the Civilization VII installation directory. The profile controls which files are included or excluded via glob patterns.
+
+The source directory is read from `inputs.installDir` in your config. The output path is resolved from `outputs.zip.dir` and `outputs.zip.name`, but can be overridden by passing a `zipfile` argument.
+
+After archiving, the command prints a summary showing uncompressed and compressed sizes, and warns if the archive exceeds GitHub's 100 MB file limit.
+
+## Arguments
+
+<ParamField path="profile" type="string" default="default">
+  The profile to use from the config file. Controls include/exclude glob patterns applied during archiving.
+
+  Built-in profiles:
+  - `default` — core gameplay data, excluding large media assets
+  - `full` — all files with no exclusions
+  - `assets` — only media assets (icons, fonts, movies)
+</ParamField>
+
+<ParamField path="zipfile" type="string">
+  Override the output path for the zip archive. When omitted, the path is resolved from the profile's config settings.
+</ParamField>
+
+## Flags
+
+<ParamField query="--config" type="string">
+  Path to a custom `civ.config.jsonc` file.
+</ParamField>
+
+<ParamField query="--installDir" type="string">
+  Override the Civilization VII install directory (source for zipping). Bypasses `inputs.installDir` in the config.
+</ParamField>
+
+<ParamField query="-v, --verbose" type="boolean" default="false">
+  Enable verbose output showing each file as it is added to the archive.
+</ParamField>
+
+## Example output
+
+```
+→ Using config: /workspace/civ.config.jsonc
+→ Using source: /Applications/Sid Meier's Civilization VII/CivilizationVII.app/Contents/Resources
+→ Zipping resources with profile 'default'...
+✅ Successfully created archive: .civ7/outputs/archives/civ7-official-resources.zip
+
++------------------------------------------------------+
+| Zip Operation Summary for Profile: 'default'         |
++-----------------------------+------------------------+
+| Uncompressed Size           | 1.23 GB                |
+| Final Archive Size          | 456.78 MB              |
++-----------------------------+------------------------+
+```
+
+## Examples
+
+<CodeGroup>
+
+```bash Default profile
+civ7 data zip
+```
+
+```bash Full archive (no exclusions)
+civ7 data zip full
+```
+
+```bash Assets only, verbose
+civ7 data zip --verbose assets
+```
+
+```bash Custom config file
+civ7 data zip --config ./my-config.jsonc default
+```
+
+```bash Override output path
+civ7 data zip default ./my-custom-archive.zip
+```
+
+</CodeGroup>
+
+<Warning>
+  You must have Civilization VII installed and `inputs.installDir` set in your config (or pass `--installDir`) for this command to work. The command fails with a clear error if the source directory is not found.
+</Warning>
+
+<Note>
+  After zipping, run `civ7 data unzip` to extract the archive into the XML root used by the crawl and explore commands.
+</Note>

@@ -1,0 +1,103 @@
+---
+title: "data crawl"
+description: "BFS-crawl Civilization VII XML resources from a seed entity and output a dependency graph, DOT file, and manifest."
+---
+
+## Synopsis
+
+```bash
+civ7 data crawl <seed> [outDir]
+```
+
+## Description
+
+`data crawl` builds an in-memory index over a root folder of Civilization VII XML files, then performs a breadth-first search (BFS) starting from a seed entity. It discovers all rows that reference the seed — and their references in turn — while pruning dangling links and respecting delete semantics.
+
+The command writes three output files:
+
+| File | Description |
+|------|-------------|
+| `graph.json` | Graph model (nodes and edges) consumable by downstream tools |
+| `graph.dot` | Graphviz DOT representation with labels, tooltips, and links |
+| `manifest.txt` | Absolute paths of all XML source files that contributed nodes |
+
+Output is placed in `out/<seed>/` by default, or in a location derived from `outputs.graph.dir` in your config.
+
+## Arguments
+
+<ParamField path="seed" type="string" required>
+  The seed entity to start the crawl from. Accepts two formats:
+
+  - **Prefix format**: an ID with a known table prefix such as `LEADER_AMANITORE`, `CIVILIZATION_ROME`, `TRAIT_LEADER_AMINA_QUEEN`.
+  - **Table:ID format**: an explicit `Table:ID` pair such as `Traits:TRAIT_SOME_TRAIT`.
+</ParamField>
+
+<ParamField path="outDir" type="string">
+  Output directory for graph files. Defaults to `out/<seed>` relative to the workspace root (or the `outputs.graph.dir` path from your config when a profile is active).
+</ParamField>
+
+## Flags
+
+<ParamField query="--config" type="string">
+  Path to a custom `civ.config.jsonc` file. Overrides auto-discovery.
+</ParamField>
+
+<ParamField query="--profile" type="string" default="default">
+  Which profile key to use from the config file. Affects how the XML root and output directories are resolved.
+</ParamField>
+
+<ParamField query="--root" type="string">
+  Override the XML root directory directly, bypassing config-based resolution. Useful when you have extracted resources in a non-standard location.
+</ParamField>
+
+## How the crawl works
+
+1. The CLI indexes all XML files under the root directory, normalizing Civ-style tables such as `Modifiers`, `ModifierArguments`, `RequirementSets`, and `Requirements`.
+2. Starting from the seed, BFS expands edges (e.g., `LeaderTraits`, `TraitModifiers`, `Attach`, `SubjectRequirementSetId`) until no new nodes are found.
+3. Each node records its source file in the `__file` field. Nodes whose targets do not exist in the index are pruned.
+4. Processing is deterministic: files are visited in lexicographic order and delete semantics are applied before expansion.
+
+## Examples
+
+<CodeGroup>
+
+```bash Basic crawl
+civ7 data crawl LEADER_AMANITORE
+```
+
+```bash Custom output directory
+civ7 data crawl LEADER_AMANITORE ./out/amanitore
+```
+
+```bash Table:ID format
+civ7 data crawl Traits:TRAIT_LEADER_AMINA_QUEEN
+```
+
+```bash Using a named profile
+civ7 data crawl CIVILIZATION_ROME --profile default
+```
+
+```bash Override XML root
+civ7 data crawl UNIT_WARRIOR --root ./resources
+```
+
+</CodeGroup>
+
+After a successful crawl, the output folder contains:
+
+```
+out/LEADER_AMANITORE/
+├── graph.json
+├── graph.dot
+└── manifest.txt
+```
+
+<Note>
+  Use `civ7 data explore` to run the full pipeline (crawl → render → viewer) in a single command. Use `civ7 data render` to convert an existing `graph.dot` to SVG.
+</Note>
+
+## Troubleshooting
+
+**"Could not determine XML root directory"** — Provide `--root` or define `outputs.unzip.dir` in `civ.config.jsonc` and run `civ7 data unzip` first to populate it.
+
+**Empty graph output** — Verify that the seed exists in your indexed XML. Check that the XML root directory contains the game data files.

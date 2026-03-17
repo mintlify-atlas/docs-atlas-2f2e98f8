@@ -1,0 +1,65 @@
+---
+title: "Introduction"
+description: "Civ7 Modding Tools is a TypeScript monorepo for building Civilization VII mods programmatically — type-safe builders, CLI resource management, and everything in between."
+---
+
+## What is Civ7 Modding Tools?
+
+Civ7 Modding Tools is an open-source TypeScript monorepo that replaces hand-editing XML files with code. You describe mod entities — units, civilizations, buildings, progressions trees — using strongly-typed builders, and the SDK generates all the XML, `.modinfo`, and folder structure the game expects.
+
+The project started as a fork of [izica/civ7-modding-tools](https://github.com/izica/civ7-modding-tools) and has since diverged into a full toolkit with its own SDK, CLI, documentation site, and playground.
+
+## Who is it for?
+
+- **TypeScript developers** who want type-safety and autocompletion when building mods
+- **Modders** who want to automate repetitive XML work or generate large mods programmatically
+- **Researchers** who want to explore game entity relationships using the graph crawler
+- **Teams** who want to version-control mods alongside tooling in a single repo
+
+## Monorepo structure
+
+The repository is organized into four main areas:
+
+```
+civ7-modding-tools/
+├── packages/
+│   ├── sdk/              # TypeScript SDK for mod generation
+│   ├── cli/              # `civ7` command-line tool (oclif)
+│   ├── config/           # Shared config and path resolution
+│   └── plugins/
+│       ├── plugin-files/ # Zip/unzip library consumed by CLI
+│       └── plugin-graph/ # Graph crawl and render library
+├── apps/
+│   ├── docs/             # This documentation site (Mintlify)
+│   └── playground/       # Example mods and experiments
+├── mods/
+│   └── <mod-name>/       # Colocated mod workspaces consuming the SDK
+└── civ.config.jsonc      # CLI configuration
+```
+
+## Key capabilities
+
+- **Strongly-typed builders** — `UnitBuilder`, `CivilizationBuilder`, `ConstructibleBuilder`, `ProgressionTreeBuilder`, `ModifierBuilder`, and more. Configure entities in TypeScript; the SDK emits correct XML.
+- **Full game constants** — every unit type, ability, effect, terrain, and resource available as imported TypeScript constants with IntelliSense support.
+- **Resource extraction** — the `civ7` CLI zips and unzips official game resources on demand using profiles defined in `civ.config.jsonc`.
+- **XML graph crawler** — BFS-crawl Civ7's XML database from any seed entity (`LEADER_AMANITORE`, `CIVILIZATION_ROME`, etc.) to produce a dependency graph, DOT file, and file manifest.
+- **Graph visualization** — render DOT files to SVG via WebAssembly Graphviz and explore relationships in an interactive local HTML viewer.
+- **Mod management** — import, sync, and deploy mods stored in external git repositories using `civ7 mod git`.
+- **Localization** — attach localized names and descriptions to any entity with built-in multi-language support.
+
+## Explore the toolkit
+
+<CardGroup cols={2}>
+  <Card title="SDK" icon="code" href="/sdk/overview">
+    Builders, constants, node API, and file generation for writing mods in TypeScript.
+  </Card>
+  <Card title="CLI" icon="terminal" href="/cli/overview">
+    The `civ7` command for resource extraction, graph crawling, and mod management.
+  </Card>
+  <Card title="Guides" icon="book-open" href="/guides/modding-architecture">
+    Modding fundamentals, TypeScript how-tos, and complete worked examples.
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get a working mod running in about five minutes.
+  </Card>
+</CardGroup>

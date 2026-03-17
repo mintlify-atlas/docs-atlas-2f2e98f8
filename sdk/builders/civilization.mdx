@@ -1,0 +1,238 @@
+---
+title: "CivilizationBuilder"
+description: "Define new civilizations with traits, start biases, unique unlocks, and leader bindings."
+---
+
+`CivilizationBuilder` generates the full set of XML required for a playable civilization: game data, shell data, legacy data, icons, localizations, and game effects.
+
+## Import
+
+```typescript
+import {
+  CivilizationBuilder,
+  CivilizationUnlockBuilder,
+  LeaderUnlockBuilder,
+  ACTION_GROUP_BUNDLE,
+  TRAIT,
+  TAG_TRAIT,
+  AGE,
+} from '@mateicanavra/civ7-sdk';
+```
+
+## Constructor
+
+```typescript
+new CivilizationBuilder(options?: Partial<CivilizationBuilderOptions>)
+```
+
+<ParamField body="actionGroupBundle" type="ActionGroupBundle" required>
+  Which age this civilization belongs to. Use `ACTION_GROUP_BUNDLE.AGE_ANTIQUITY`, `AGE_EXPLORATION`, or `AGE_MODERN`.
+</ParamField>
+
+<ParamField body="civilization" type="TPartialRequired<TCivilizationNode, 'civilizationType' | 'domain'>" required>
+  Core civilization row. `civilizationType` and `domain` are required.
+
+  <Expandable title="civilization fields">
+    <ParamField body="civilizationType" type="string" required>
+      Primary key — e.g. `'CIVILIZATION_GONDOR'`.
+    </ParamField>
+    <ParamField body="domain" type="string" required>
+      Age domain — `'AntiquityAgeCivilizations'`, `'ExplorationAgeCivilizations'`, or `'ModernAgeCivilizations'`.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="trait" type="TPartialRequired<TTraitNode, 'traitType'>">
+  The civilization's primary trait. If omitted, auto-derived from `civilizationType` by replacing `CIVILIZATION_` with `TRAIT_`.
+</ParamField>
+
+<ParamField body="traitAbility" type="TPartialRequired<TraitNode, 'traitType'>">
+  The civilization's ability trait. If omitted, auto-derived as `<trait.traitType>_ABILITY`.
+</ParamField>
+
+<ParamField body="civilizationTraits" type="(TObjectValues<typeof TRAIT> | string)[]" default="[]">
+  Additional trait types applied to this civilization. Use `TRAIT.*` constants.
+
+  ```typescript
+  civilizationTraits: [
+    TRAIT.ANTIQUITY_CIV,
+    TRAIT.ATTRIBUTE_EXPANSIONIST,
+    TRAIT.ATTRIBUTE_MILITARISTIC,
+  ]
+  ```
+</ParamField>
+
+<ParamField body="civilizationTags" type="TObjectValues<typeof TAG_TRAIT>[]" default="[]">
+  Civilization domain tags used for AI selection and filtering. Use `TAG_TRAIT.*` constants.
+
+  ```typescript
+  civilizationTags: [TAG_TRAIT.CULTURAL, TAG_TRAIT.ECONOMIC]
+  ```
+</ParamField>
+
+<ParamField body="civilizationLegacy" type="TPartialRequired<TLegacyCivilizationNode, 'age'>">
+  Legacy path configuration. Defaults to `{ age: AGE.ANTIQUITY }`.
+</ParamField>
+
+<ParamField body="civilizationItems" type="TPartialRequired<TCivilizationItemNode, 'type' | 'kind'>[]" default="[]">
+  Additional items shown on the civilization's selection screen (units, buildings, etc.). Items bound via `bind()` are added automatically.
+</ParamField>
+
+<ParamField body="startBiasBiomes" type="TPartialRequired<TStartBiasBiomeNode, 'biomeType'>[]" default="[]">
+  Preferred biome types for starting location selection.
+</ParamField>
+
+<ParamField body="startBiasTerrains" type="TPartialRequired<TStartBiasTerrainNode, 'terrainType'>[]" default="[]">
+  Preferred terrain types for starting location.
+</ParamField>
+
+<ParamField body="startBiasResources" type="TPartialRequired<TStartBiasResourceNode, 'resourceType'>[]" default="[]">
+  Preferred resources near the start.
+</ParamField>
+
+<ParamField body="startBiasFeatureClasses" type="TPartialRequired<TStartBiasFeatureClassNode, 'featureClassType'>[]" default="[]">
+  Preferred feature classes near the start.
+</ParamField>
+
+<ParamField body="startBiasRiver" type="number | null" default="null">
+  Score bonus for starting near a river.
+</ParamField>
+
+<ParamField body="startBiasAdjacentToCoast" type="number | null" default="null">
+  Score bonus for starting adjacent to coast.
+</ParamField>
+
+<ParamField body="visArtCivilizationBuildingCultures" type="TObjectValues<typeof BUILDING_CULTURES>[]" default="[]">
+  Visual art building culture overrides. Use `BUILDING_CULTURES.*` constants.
+</ParamField>
+
+<ParamField body="visArtCivilizationUnitCulture" type="TObjectValues<typeof UNIT_CULTURE> | null" default="null">
+  Visual art unit culture override. Use `UNIT_CULTURE.*` constants.
+</ParamField>
+
+<ParamField body="icon" type="TPartialRequired<TIconDefinitionNode, 'path'>">
+  Civilization symbol icon. Defaults to `'fs://game/civ_sym_han'`.
+</ParamField>
+
+<ParamField body="localizations" type="Partial<TCivilizationLocalization>[]" default="[]">
+  Localized strings for name, fullName, adjective, description, and city names.
+
+  ```typescript
+  localizations: [{
+    name: 'Gondor',
+    fullName: 'The Kingdom of Gondor',
+    adjective: 'Gondorian',
+    description: 'A proud kingdom of men.',
+    cityNames: ['Minas Tirith', 'Osgiliath', 'Dol Amroth'],
+  }]
+  ```
+</ParamField>
+
+## `bind()` method
+
+Use `bind()` to associate builders with this civilization. This sets trait types, adds `CivilizationItem` entries, and wires up game effect modifiers.
+
+```typescript
+bind(items: (
+  UnitBuilder |
+  ConstructibleBuilder |
+  ProgressionTreeBuilder |
+  ModifierBuilder |
+  UniqueQuarterBuilder |
+  CivilizationUnlockBuilder |
+  LeaderUnlockBuilder
+)[]): this
+```
+
+What each binding does:
+
+| Builder type | Effect of `bind()` |
+|---|---|
+| `UnitBuilder` | Sets `traitType` on the unit; adds unit to civilization items |
+| `ConstructibleBuilder` | Sets `traitType`; adds constructible to civilization items |
+| `ModifierBuilder` | Adds modifier to game effects and creates `TraitModifier` |
+| `UniqueQuarterBuilder` | Sets `traitType`; adds quarter to civilization items |
+| `ProgressionTreeBuilder` | Creates a reveal modifier and wires the unlock node |
+| `CivilizationUnlockBuilder` | Adds `CivilizationUnlock` entry to the shell database |
+| `LeaderUnlockBuilder` | Adds `LeaderUnlock` and `LeaderCivilizationBias` entries |
+
+## Generated files
+
+| File | Content | Action group |
+|---|---|---|
+| `current.xml` | Types, Traits, Civilizations (game slice), CivilizationTraits, StartBias | Age current |
+| `shell.xml` | Civilizations (shell slice), CivilizationTags, CivilizationItems | Shell |
+| `legacy.xml` | LegacyCivilizations, LegacyCivilizationTraits (insert-or-ignore) | Always |
+| `game-effects.xml` | Modifiers (from bound ModifierBuilders) | Age current |
+| `localization.xml` | EnglishText | Shell + always |
+| `icons.xml` | IconDefinitions | Shell + always |
+
+## Example
+
+```typescript
+import {
+  Mod,
+  CivilizationBuilder,
+  UnitBuilder,
+  ImportFileBuilder,
+  ACTION_GROUP_BUNDLE,
+  TRAIT,
+  TAG_TRAIT,
+  UNIT,
+  UNIT_CLASS,
+} from '@mateicanavra/civ7-sdk';
+
+const mod = new Mod({ id: 'gondor-mod', version: '1' });
+
+const civilizationIcon = new ImportFileBuilder({
+  actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+  content: './assets/civ-icon.png',
+  name: 'civ_sym_gondor',
+});
+
+const civilization = new CivilizationBuilder({
+  actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+  civilization: {
+    domain: 'AntiquityAgeCivilizations',
+    civilizationType: 'CIVILIZATION_GONDOR',
+  },
+  civilizationTraits: [
+    TRAIT.ANTIQUITY_CIV,
+    TRAIT.ATTRIBUTE_MILITARISTIC,
+  ],
+  civilizationTags: [TAG_TRAIT.CULTURAL],
+  icon: {
+    path: `fs://game/${mod.id}/${civilizationIcon.name}`,
+  },
+  localizations: [{
+    name: 'Gondor',
+    fullName: 'The Kingdom of Gondor',
+    adjective: 'Gondorian',
+    description: 'A proud kingdom of men.',
+    cityNames: ['Minas Tirith', 'Osgiliath'],
+  }],
+});
+
+const unit = new UnitBuilder({
+  actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+  typeTags: [UNIT_CLASS.RECON],
+  unit: { unitType: 'UNIT_GONDOR_SCOUT', baseMoves: 3, baseSightRange: 3 },
+  unitReplace: { replacesUnitType: UNIT.SCOUT },
+  localizations: [{ name: 'Tower Guard', description: 'Elite scouts of Gondor.' }],
+});
+
+civilization.bind([unit]);
+
+mod.add([civilization, civilizationIcon, unit]).build('./gondor-mod');
+```
+
+## Related builders
+
+<CardGroup cols={2}>
+  <Card title="CivilizationUnlockBuilder" icon="arrow-right" href="/sdk/builders/civilization">
+    Configure which civilization this unlocks in the next age.
+  </Card>
+  <Card title="LeaderUnlockBuilder" icon="user" href="/sdk/builders/civilization">
+    Associate a leader with this civilization.
+  </Card>
+</CardGroup>

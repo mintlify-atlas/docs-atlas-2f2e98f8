@@ -1,0 +1,90 @@
+---
+title: "CLI overview"
+description: "The `civ7` CLI for crawling XML resources, visualizing game-data graphs, archiving resources, and managing mods via git subtree."
+---
+
+The `civ7` CLI is the command-line interface for the Civ7 Modding Tools monorepo. It lets you crawl Civilization VII XML resources, render dependency graphs, zip and unzip resource archives, and manage mod repositories — all from your terminal.
+
+## Binary name and installation
+
+The binary is named `civ7`. Install it by running the following commands from the repo root:
+
+```bash
+bun install --frozen-lockfile
+bun run link:cli
+```
+
+This builds the CLI and creates a global link so `civ7` is available everywhere in your terminal. After running, open a new terminal session or re-source your shell profile if the command is not yet found.
+
+<Note>
+  Node 22.14+ and Bun are required. See [Prerequisites](/installation/prerequisites) for details.
+</Note>
+
+## Command tree
+
+The CLI is organized into three topics.
+
+| Topic | Description |
+|-------|-------------|
+| `data` | Crawl XML resources, render graphs, and manage archives |
+| `mod git` | Manage mod repositories via git subtree |
+| `mod manage` | List and deploy local mod folders |
+
+## All commands
+
+| Command | Summary |
+|---------|---------|
+| `civ7 data crawl` | BFS-crawl XML from a seed, output `graph.json`, `graph.dot`, `manifest.txt` |
+| `civ7 data explore` | Full pipeline: crawl → render → open interactive viewer |
+| `civ7 data render` | Render a DOT file to SVG using WebAssembly Graphviz |
+| `civ7 data slice` | Copy files listed in `manifest.txt` to a destination folder |
+| `civ7 data zip` | Create a zip archive of game resources using a profile |
+| `civ7 data unzip` | Extract a resource archive using a profile |
+| `civ7 mod git setup` | Configure remote and import a mod in one step |
+| `civ7 mod git import` | Import a remote mod repository as a subtree |
+| `civ7 mod git pull` | Pull remote changes into a local mod subtree |
+| `civ7 mod git push` | Push local mod changes back to its remote |
+| `civ7 mod git status` | Show git subtree status for a mod |
+| `civ7 mod git list` | List all stored mod subtree configurations |
+| `civ7 mod git clear` | Delete all stored mod subtree configurations |
+| `civ7 mod git remove` | Remove a single stored mod subtree configuration |
+| `civ7 mod git update` | Create or update the remote configuration for a mod |
+| `civ7 mod manage list` | List locally installed mods in the Mods directory |
+| `civ7 mod manage deploy` | Deploy a mod folder into the Civ7 Mods directory |
+
+<Tip>
+  Every command supports `--help`. Run `civ7 <command> --help` to see flags and examples directly in your terminal.
+</Tip>
+
+## Configuration
+
+Behavior is controlled by `civ.config.jsonc` at your workspace root. See [Configuration](/cli/configuration) for the full reference.
+
+## Command groups
+
+<CardGroup cols={2}>
+  <Card title="data crawl" icon="magnifying-glass" href="/cli/commands/data-crawl">
+    BFS-crawl XML resources from any seed entity.
+  </Card>
+  <Card title="data explore" icon="diagram-project" href="/cli/commands/data-explore">
+    One-shot pipeline: crawl, render, and open an interactive graph viewer.
+  </Card>
+  <Card title="data render" icon="image" href="/cli/commands/data-render">
+    Render a DOT file to SVG with no native Graphviz dependency.
+  </Card>
+  <Card title="data slice" icon="scissors" href="/cli/commands/data-slice">
+    Copy manifest-listed files to a destination folder.
+  </Card>
+  <Card title="data zip" icon="file-zipper" href="/cli/commands/data-zip">
+    Archive game resources using a named profile.
+  </Card>
+  <Card title="data unzip" icon="folder-open" href="/cli/commands/data-unzip">
+    Extract a resource archive using a named profile.
+  </Card>
+  <Card title="mod git" icon="code-branch" href="/cli/commands/mod-git">
+    Manage mod repositories via git subtree.
+  </Card>
+  <Card title="mod manage" icon="boxes-stacked" href="/cli/commands/mod-manage">
+    List and deploy local mod folders.
+  </Card>
+</CardGroup>

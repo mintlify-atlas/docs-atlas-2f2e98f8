@@ -1,0 +1,80 @@
+---
+title: "data unzip"
+description: "Extract a Civilization VII resource archive into a local directory using a named profile."
+---
+
+## Synopsis
+
+```bash
+civ7 data unzip [profile] [zipfile] [extractpath]
+```
+
+## Description
+
+`data unzip` extracts a resource archive created by `civ7 data zip`. The source zip path and extraction directory are resolved from the named profile in your config, but both can be overridden with arguments.
+
+After extraction, the unpacked resources serve as the XML root for `civ7 data crawl`, `civ7 data explore`, and `civ7 data slice`.
+
+## Arguments
+
+<ParamField path="profile" type="string" default="default">
+  The profile to use from the config file. Determines the default zip source path and extraction directory.
+</ParamField>
+
+<ParamField path="zipfile" type="string">
+  Override the source path for the zip archive. When omitted, resolved from `outputs.zip` in the config.
+</ParamField>
+
+<ParamField path="extractpath" type="string">
+  Override the output directory for extraction. When omitted, resolved from `outputs.unzip.dir` in the config.
+</ParamField>
+
+## Flags
+
+<ParamField query="--config" type="string">
+  Path to a custom `civ.config.jsonc` file.
+</ParamField>
+
+## Example output
+
+```
+→ Using config: /workspace/civ.config.jsonc
+✅ Successfully unpacked resources to: .civ7/outputs/resources
+
++--------------------------------------------------------+
+| Unzip Operation Summary for Profile: 'default'         |
++-----------------------------+--------------------------+
+| Archive Size                | 456.78 MB                |
+| Uncompressed Size           | 1.23 GB                  |
++-----------------------------+--------------------------+
+```
+
+## Examples
+
+<CodeGroup>
+
+```bash Default profile
+civ7 data unzip
+```
+
+```bash Full profile
+civ7 data unzip full
+```
+
+```bash Custom config file
+civ7 data unzip --config ./my-config.jsonc default
+```
+
+```bash Override both source and destination
+civ7 data unzip default ./my-custom-archive.zip ./my-custom-output-dir
+```
+
+</CodeGroup>
+
+<Tip>
+  Run `bun run refresh:data` from the repo root to run both `zip` and `unzip` in sequence. This is the standard setup step for populating `.civ7/outputs/resources`.
+</Tip>
+
+<Note>
+  After extraction, use `civ7 data crawl` or `civ7 data explore` to start traversing the XML resources.
+</Note>

@@ -1,0 +1,265 @@
+---
+title: "Traditions"
+description: "Create policy cards (traditions) that persist across ages using TraditionBuilder."
+keywords: ["traditions", "TraditionBuilder", "policy cards", "TraditionGroupBuilder", "civilization traditions"]
+---
+
+Traditions are social policies that players can adopt to gain gameplay bonuses. Unlike other content, traditions **persist across age transitions**, making them a powerful long-term strategic choice. They are unlocked through the civic tree.
+
+## Basic tradition
+
+<Steps>
+  <Step title="Import dependencies">
+    ```typescript
+    import {
+        ACTION_GROUP_BUNDLE,
+        Mod,
+        ModifierBuilder,
+        TraditionBuilder,
+        COLLECTION,
+        EFFECT,
+    } from 'civ7-modding-tools';
+    ```
+  </Step>
+
+  <Step title="Create the tradition">
+    ```typescript
+    const mod = new Mod({ id: 'my-tradition-mod', version: '1.0' });
+
+    const mountaintopWatch = new TraditionBuilder({
+        actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+        tradition: {
+            traditionType: 'TRADITION_MOUNTAINTOP_WATCH',
+        },
+        localizations: [{
+            name: 'Mountaintop Watch',
+            description: 'Ancient practice of maintaining watchtowers on strategic peaks.',
+        }],
+    });
+    ```
+  </Step>
+
+  <Step title="Create and bind a modifier">
+    ```typescript
+    const sightBonus = new ModifierBuilder({
+        modifier: {
+            collection: COLLECTION.PLAYER_UNITS,
+            effect: EFFECT.UNIT_ADJUST_SIGHT,
+            arguments: [{ name: 'Amount', value: 1 }],
+        },
+        localizations: [{ description: '+1 Sight Range for all units.' }],
+    });
+
+    mountaintopWatch.bind([sightBonus]);
+    ```
+  </Step>
+
+  <Step title="Build the mod">
+    ```typescript
+    mod.add([mountaintopWatch]).build('./dist');
+    ```
+  </Step>
+</Steps>
+
+## Tradition with multiple effects
+
+Bind multiple modifiers to one tradition for layered bonuses:
+
+```typescript
+const warriorCult = new TraditionBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    tradition: { traditionType: 'TRADITION_WARRIOR_CULT' },
+    localizations: [{
+        name: 'Warrior Cult',
+        description: 'Society-wide emphasis on martial prowess.',
+    }],
+});
+
+// Effect 1: Combat bonus for melee units
+const meleeBonus = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_UNITS,
+        effect: EFFECT.UNIT_ADJUST_COMBAT_STRENGTH,
+        requirements: [{
+            type: REQUIREMENT.UNIT_TAG_MATCHES,
+            arguments: [{ name: 'Tag', value: UNIT_CLASS.MELEE }],
+        }],
+        arguments: [{ name: 'Amount', value: 3 }],
+    },
+    localizations: [{ description: '+3 Combat Strength for Melee units.' }],
+});
+
+// Effect 2: Production bonus when training units
+const trainingBonus = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_CITIES,
+        effect: EFFECT.CITY_ADJUST_YIELD_MODIFIER_FOR_UNIT_TRAINING,
+        arguments: [
+            { name: 'YieldType', value: YIELD.PRODUCTION },
+            { name: 'Amount', value: 15 },
+        ],
+    },
+    localizations: [{ description: '+15% Production when training units.' }],
+});
+
+warriorCult.bind([meleeBonus, trainingBonus]);
+mod.add([warriorCult]);
+```
+
+## Civilization-specific tradition
+
+A tradition exclusive to one civilization by requiring that civilization type:
+
+```typescript
+const dacianWolfCult = new TraditionBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    tradition: { traditionType: 'TRADITION_WOLF_CULT' },
+    localizations: [{
+        name: 'Wolf Cult',
+        description: 'Dacian religious practices venerating the wolf.',
+    }],
+});
+
+const wolfCultBonus = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_UNITS,
+        effect: EFFECT.UNIT_ADJUST_COMBAT_STRENGTH,
+        requirements: [{
+            type: REQUIREMENT.PLAYER_IS_CIVILIZATION_TYPE,
+            arguments: [{ name: 'CivilizationType', value: 'CIVILIZATION_DACIA' }],
+        }],
+        arguments: [{ name: 'Amount', value: 5 }],
+    },
+    localizations: [{ description: '+5 Combat Strength (Dacia only).' }],
+});
+
+dacianWolfCult.bind([wolfCultBonus]);
+```
+
+## Age-spanning tradition
+
+A tradition can provide different bonuses depending on the current age:
+
+```typescript
+const ancientHeritage = new TraditionBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    tradition: { traditionType: 'TRADITION_ANCIENT_HERITAGE' },
+    localizations: [{
+        name: 'Ancient Heritage',
+        description: 'Preserving the ways of the ancients through changing times.',
+    }],
+});
+
+// +3 Culture in Antiquity
+const antiquityBonus = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_CITIES,
+        effect: EFFECT.CITY_ADJUST_YIELD,
+        requirements: [{
+            type: REQUIREMENT.PLAYER_IS_IN_AGE,
+            arguments: [{ name: 'AgeType', value: AGE.ANTIQUITY }],
+        }],
+        arguments: [
+            { name: 'YieldType', value: 'YIELD_CULTURE' },
+            { name: 'Amount', value: 3 },
+        ],
+    },
+    localizations: [{ description: '+3 Culture (Antiquity Age).' }],
+});
+
+// +5 Culture in Exploration
+const explorationBonus = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_CITIES,
+        effect: EFFECT.CITY_ADJUST_YIELD,
+        requirements: [{
+            type: REQUIREMENT.PLAYER_IS_IN_AGE,
+            arguments: [{ name: 'AgeType', value: AGE.EXPLORATION }],
+        }],
+        arguments: [
+            { name: 'YieldType', value: 'YIELD_CULTURE' },
+            { name: 'Amount', value: 5 },
+        ],
+    },
+    localizations: [{ description: '+5 Culture (Exploration Age).' }],
+});
+
+ancientHeritage.bind([antiquityBonus, explorationBonus]);
+```
+
+## Wartime tradition
+
+```typescript
+const warPreparation = new TraditionBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    tradition: { traditionType: 'TRADITION_WAR_PREPARATION' },
+    localizations: [{
+        name: 'War Preparation',
+        description: 'Society organized for rapid mobilization during conflict.',
+    }],
+});
+
+const wartimeBonus = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_CITIES,
+        effect: EFFECT.CITY_ADJUST_YIELD,
+        requirements: [{ type: REQUIREMENT.PLAYER_IS_AT_WAR }],
+        arguments: [
+            { name: 'YieldType', value: YIELD.PRODUCTION },
+            { name: 'Amount', value: 20 },
+            { name: 'Percent', value: true },
+        ],
+    },
+    localizations: [{ description: '+20% Production while at war.' }],
+});
+
+warPreparation.bind([wartimeBonus]);
+```
+
+## Tradition groups
+
+Organize related traditions with `TraditionGroupBuilder`:
+
+```typescript
+import { TraditionGroupBuilder } from 'civ7-modding-tools';
+
+const tradition1 = new TraditionBuilder({ /* ... */ });
+const tradition2 = new TraditionBuilder({ /* ... */ });
+const tradition3 = new TraditionBuilder({ /* ... */ });
+
+const militaryTraditions = new TraditionGroupBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    traditionGroup: {
+        traditionGroupType: 'TRADITION_GROUP_DACIA_MILITARY',
+    },
+    localizations: [{
+        name: 'Dacian Military Traditions',
+        description: 'Traditions focused on warfare and martial prowess.',
+    }],
+});
+
+// Associate traditions with the group
+militaryTraditions.bind([tradition1, tradition2, tradition3]);
+
+mod.add([militaryTraditions, tradition1, tradition2, tradition3]);
+```
+
+## Design guidance
+
+<AccordionGroup>
+  <Accordion title="Balance tradition benefits carefully">
+    Traditions are persistent, so they compound over time. A +3 Combat Strength tradition that carries through three ages is more powerful than it appears in isolation.
+  </Accordion>
+  <Accordion title="Design for cross-age relevance">
+    The best traditions remain useful across all three ages. Combat strength bonuses tend to scale naturally; yield bonuses may need age-specific requirements to stay balanced.
+  </Accordion>
+  <Accordion title="Match traditions to civilization identity">
+    Civilization-specific traditions should reinforce what the civilization already does well — not compensate for weaknesses.
+  </Accordion>
+</AccordionGroup>
+
+## Related guides
+
+- [Creating Civilizations](/guides/typescript/creating-civilizations)
+- [Modifiers and Effects](/guides/typescript/modifiers-and-effects)
+- [Progression Trees](/guides/typescript/progression-trees)

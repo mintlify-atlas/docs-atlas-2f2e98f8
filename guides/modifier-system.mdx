@@ -1,0 +1,330 @@
+---
+title: "Modifier System"
+description: "How modifiers implement gameplay effects in Civ7, and how to use ModifierBuilder."
+keywords: ["modifiers", "effects", "requirements", "collections", "ModifierBuilder", "traits"]
+---
+
+Modifiers are the engine behind almost every gameplay effect in Civilization VII. A civilization's unique ability, a tradition's bonus, a unit's special power — they are all implemented as one or more modifiers. Understanding modifiers is essential for creating meaningful gameplay content.
+
+## What a modifier does
+
+A modifier describes a conditional change to the game state:
+
+> *"All of the player's melee units gain +5 Combat Strength when fighting in Hills terrain."
+
+Breaking that down:
+
+| Component | Value | Meaning |
+|---|---|---|
+| **Collection** | `PLAYER_UNITS` | Which entities are affected |
+| **Effect** | `UNIT_ADJUST_COMBAT_STRENGTH` | What changes |
+| **Requirement** | `UNIT_TAG_MATCHES (MELEE)` | Only when this is true |
+| **Requirement** | `COMBAT_IS_IN_HILLS` | And this is also true |
+| **Argument** | `Amount = 5` | By how much |
+
+## The four components
+
+### 1. Collection
+
+Defines the set of game entities the modifier targets.
+
+| Collection | Targets |
+|---|---|
+| `PLAYER_UNITS` | All units owned by the player |
+| `PLAYER_CITIES` | All cities owned by the player |
+| `ALL_CITIES` | Every city in the game |
+| `CITY_SELF` | The specific city (used for building effects) |
+| `OWNER` | The player who owns the entity |
+| `ADJACENT_PLOTS` | Tiles adjacent to a location |
+| `PLAYER_PLOTS` | All tiles the player controls |
+
+### 2. Effect
+
+Defines what the modifier actually changes.
+
+**Unit effects:**
+
+| Effect | Description |
+|---|---|
+| `UNIT_ADJUST_COMBAT_STRENGTH` | Flat bonus to combat strength |
+| `UNIT_ADJUST_MOVEMENT` | Change movement points |
+| `UNIT_ADJUST_SIGHT` | Change sight range |
+| `UNIT_ADJUST_RANGE` | Change ranged attack range |
+| `UNIT_ADJUST_MAINTENANCE` | Change maintenance cost |
+
+**City / player effects:**
+
+| Effect | Description |
+|---|---|
+| `CITY_ADJUST_YIELD` | Change a city's yield output |
+| `CITY_ADJUST_GROWTH` | Change city growth rate |
+| `PLAYER_ADJUST_CONSTRUCTIBLE_YIELD` | Change yields from buildings/improvements |
+| `PLAYER_ENABLE_UNIT` | Unlock a unit for production |
+| `PLAYER_ENABLE_BUILDING` | Unlock a building for production |
+
+### 3. Requirements
+
+Requirements are optional conditions that must all be true for the modifier to apply (logical AND). For OR logic, use multiple separate modifiers with the same effect.
+
+**Unit requirements:**
+
+| Requirement | When true |
+|---|---|
+| `UNIT_TAG_MATCHES` | Unit has a specified tag (e.g., `MELEE`, `RECON`) |
+| `UNIT_IS_DEFENDING` | Unit is in a defensive combat |
+| `UNIT_IS_ATTACKING` | Unit is attacking |
+
+**Terrain requirements:**
+
+| Requirement | When true |
+|---|---|
+| `COMBAT_IS_IN_HILLS` | Combat occurs on a hills tile |
+| `PLOT_IS_TERRAIN_TYPE` | Plot is a specific terrain |
+| `PLOT_HAS_FEATURE` | Plot has a feature (forest, etc.) |
+| `PLOT_ADJACENT_TO_TERRAIN_TYPE` | Plot is adjacent to a terrain type |
+
+**Player / city requirements:**
+
+| Requirement | When true |
+|---|---|
+| `PLAYER_IS_CIVILIZATION_TYPE` | Player is playing a specific civilization |
+| `PLAYER_IS_AT_WAR` | Player is currently at war |
+| `PLAYER_IS_IN_AGE` | Player is in a specific age |
+| `CITY_HAS_BUILDING` | City contains a specific building |
+| `CITY_HAS_UNIQUE_QUARTER` | City contains a unique quarter |
+
+### 4. Arguments
+
+Arguments configure the effect. The required arguments depend on the effect type:
+
+```typescript
+// UNIT_ADJUST_COMBAT_STRENGTH requires "Amount"
+arguments: [{ name: 'Amount', value: 5 }]
+
+// CITY_ADJUST_YIELD requires "YieldType" and "Amount"
+arguments: [
+    { name: 'YieldType', value: YIELD.PRODUCTION },
+    { name: 'Amount', value: 2 },
+]
+
+// PLAYER_ADJUST_CONSTRUCTIBLE_YIELD requires "Tag", "YieldType", "Amount"
+arguments: [
+    { name: 'Tag', value: 'PRODUCTION' },
+    { name: 'YieldType', value: 'YIELD_GOLD' },
+    { name: 'Amount', value: 25 },
+    { name: 'Percent', value: true },  // Treat amount as %
+]
+```
+
+## Using ModifierBuilder
+
+### Simple modifier
+
+```typescript
+import {
+    ModifierBuilder,
+    COLLECTION,
+    EFFECT,
+} from 'civ7-modding-tools';
+
+const combatBonus = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_UNITS,
+        effect: EFFECT.UNIT_ADJUST_COMBAT_STRENGTH,
+        permanent: true,
+        arguments: [{ name: 'Amount', value: 3 }],
+    },
+    localizations: [{
+        description: '+3 Combat Strength for all units.',
+    }],
+});
+```
+
+### Modifier with requirements
+
+```typescript
+import {
+    ModifierBuilder,
+    COLLECTION,
+    EFFECT,
+    REQUIREMENT,
+    UNIT_CLASS,
+} from 'civ7-modding-tools';
+
+// +5 Combat Strength for Melee units defending in Hills
+const mountainDefense = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_UNITS,
+        effect: EFFECT.UNIT_ADJUST_COMBAT_STRENGTH,
+        permanent: true,
+        requirements: [
+            {
+                type: REQUIREMENT.UNIT_TAG_MATCHES,
+                arguments: [{ name: 'Tag', value: UNIT_CLASS.MELEE }],
+            },
+            { type: REQUIREMENT.UNIT_IS_DEFENDING },
+            { type: REQUIREMENT.COMBAT_IS_IN_HILLS },
+        ],
+        arguments: [{ name: 'Amount', value: 5 }],
+    },
+    localizations: [{
+        description: '+5 Combat Strength for Melee units defending on Hills.',
+    }],
+});
+```
+
+### Civilization-specific modifier
+
+```typescript
+const dacianGoldBonus = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.OWNER,
+        effect: EFFECT.PLAYER_ADJUST_CONSTRUCTIBLE_YIELD,
+        permanent: true,
+        requirements: [{
+            type: REQUIREMENT.PLAYER_IS_CIVILIZATION_TYPE,
+            arguments: [{ name: 'CivilizationType', value: 'CIVILIZATION_DACIA' }],
+        }],
+        arguments: [
+            { name: 'Tag', value: 'PRODUCTION' },
+            { name: 'YieldType', value: 'YIELD_GOLD' },
+            { name: 'Amount', value: 25 },
+            { name: 'Percent', value: true },
+        ],
+    },
+    localizations: [{
+        description: '+25% Gold from production buildings (Dacia only).',
+    }],
+});
+```
+
+## Binding modifiers
+
+Modifiers do nothing until they are attached to a game entity. Use the `.bind()` method on builders:
+
+```typescript
+import { CivilizationBuilder, TraditionBuilder, UnitBuilder } from 'civ7-modding-tools';
+
+// Attach to a civilization
+const dacia = new CivilizationBuilder({ /* ... */ });
+dacia.bind([combatBonus, dacianGoldBonus]);
+
+// Attach to a tradition
+const tradition = new TraditionBuilder({ /* ... */ });
+tradition.bind([mountainDefense]);
+
+// Attach to a unit
+const falxWarrior = new UnitBuilder({ /* ... */ });
+falxWarrior.bind([combatBonus]);
+```
+
+## Permanent vs. temporary modifiers
+
+```typescript
+// Permanent — always active once the trait/tradition/unit is active
+const permanentBonus = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_UNITS,
+        effect: EFFECT.UNIT_ADJUST_COMBAT_STRENGTH,
+        permanent: true,
+        arguments: [{ name: 'Amount', value: 3 }],
+    },
+});
+
+// Temporary — only active while requirements are met
+const wartimeBonus = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_UNITS,
+        effect: EFFECT.UNIT_ADJUST_COMBAT_STRENGTH,
+        permanent: false,
+        requirements: [{ type: REQUIREMENT.PLAYER_IS_AT_WAR }],
+        arguments: [{ name: 'Amount', value: 5 }],
+    },
+});
+```
+
+## OR logic pattern
+
+Requirements within a single modifier are ANDed together. To implement OR logic, use multiple modifiers:
+
+```typescript
+// +5 when attacking OR in hills (two separate modifiers)
+const attackBonus = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_UNITS,
+        effect: EFFECT.UNIT_ADJUST_COMBAT_STRENGTH,
+        requirements: [{ type: REQUIREMENT.UNIT_IS_ATTACKING }],
+        arguments: [{ name: 'Amount', value: 5 }],
+    },
+});
+
+const hillsBonus = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_UNITS,
+        effect: EFFECT.UNIT_ADJUST_COMBAT_STRENGTH,
+        requirements: [{ type: REQUIREMENT.COMBAT_IS_IN_HILLS }],
+        arguments: [{ name: 'Amount', value: 5 }],
+    },
+});
+
+// Both are bound to the same civilization/trait
+dacia.bind([attackBonus, hillsBonus]);
+```
+
+## Raw XML equivalent
+
+The SDK generates XML like the following. You can also write this by hand:
+
+```xml
+<Database>
+  <Types>
+    <Row Type="MODIFIER_DACIA_HILLS_COMBAT" Kind="KIND_MODIFIER"/>
+  </Types>
+
+  <Modifiers>
+    <Row ModifierId="MODIFIER_DACIA_HILLS_COMBAT"
+         ModifierType="MODIFIER_PLAYER_UNITS_ADJUST_COMBAT_STRENGTH"
+         Permanent="1" />
+  </Modifiers>
+
+  <ModifierArguments>
+    <Row ModifierId="MODIFIER_DACIA_HILLS_COMBAT" Name="Amount" Value="5" />
+  </ModifierArguments>
+
+  <ModifierStrings>
+    <Row ModifierId="MODIFIER_DACIA_HILLS_COMBAT"
+         Context="Preview"
+         Text="LOC_MODIFIER_DACIA_HILLS_COMBAT_DESCRIPTION" />
+  </ModifierStrings>
+
+  <!-- Link to a RequirementSet for terrain check -->
+  <ModifierRequirements>
+    <Row ModifierId="MODIFIER_DACIA_HILLS_COMBAT"
+         RequirementSetId="REQSET_COMBAT_IN_HILLS" />
+  </ModifierRequirements>
+
+  <RequirementSets>
+    <Row RequirementSetId="REQSET_COMBAT_IN_HILLS"
+         RequirementSetType="REQUIREMENTSET_TEST_ALL" />
+  </RequirementSets>
+
+  <Requirements>
+    <Row RequirementId="REQ_COMBAT_IS_IN_HILLS"
+         RequirementType="REQUIREMENT_COMBAT_IS_IN_HILLS" />
+  </Requirements>
+
+  <RequirementSetRequirements>
+    <Row RequirementSetId="REQSET_COMBAT_IN_HILLS"
+         RequirementId="REQ_COMBAT_IS_IN_HILLS" />
+  </RequirementSetRequirements>
+
+  <TraitModifiers>
+    <Row TraitType="TRAIT_CIVILIZATION_DACIA_ABILITY"
+         ModifierId="MODIFIER_DACIA_HILLS_COMBAT" />
+  </TraitModifiers>
+</Database>
+```
+
+<Note>
+The SDK handles all of the `RequirementSets`, `Requirements`, and `RequirementSetRequirements` table management automatically when you use the `requirements` array in `ModifierBuilder`.
+</Note>

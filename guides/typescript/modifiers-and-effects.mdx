@@ -1,0 +1,293 @@
+---
+title: "Modifiers and Effects"
+description: "ModifierBuilder in TypeScript: collections, effects, requirements, and binding patterns."
+keywords: ["ModifierBuilder", "COLLECTION", "EFFECT", "REQUIREMENT", "modifiers", "game effects"]
+---
+
+Modifiers are the building blocks of every gameplay effect. This guide covers using `ModifierBuilder` in practice — from simple flat bonuses to complex conditional effects.
+
+<Note>
+For the conceptual overview of the modifier system (collections, effects, requirements, raw XML), see [Modifier System](/guides/modifier-system). This guide focuses on TypeScript usage patterns.
+</Note>
+
+## Simple modifier
+
+```typescript
+import {
+    ACTION_GROUP_BUNDLE,
+    COLLECTION,
+    EFFECT,
+    Mod,
+    ModifierBuilder,
+} from 'civ7-modding-tools';
+
+const mod = new Mod({ id: 'my-modifier-mod', version: '1.0' });
+
+// +2 Combat Strength for all units
+const simpleModifier = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_UNITS,
+        effect: EFFECT.UNIT_ADJUST_COMBAT_STRENGTH,
+        permanent: true,
+        arguments: [{ name: 'Amount', value: 2 }],
+    },
+    localizations: [{
+        description: '+2 Combat Strength for all units.',
+    }],
+});
+
+mod.add([simpleModifier]).build('./dist');
+```
+
+## Modifier with requirements
+
+```typescript
+import { REQUIREMENT, UNIT_CLASS } from 'civ7-modding-tools';
+
+// +5 Combat for Melee units defending on Hills
+const defensiveModifier = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_UNITS,
+        effect: EFFECT.UNIT_ADJUST_COMBAT_STRENGTH,
+        permanent: true,
+        requirements: [
+            {
+                type: REQUIREMENT.UNIT_TAG_MATCHES,
+                arguments: [{ name: 'Tag', value: UNIT_CLASS.MELEE }],
+            },
+            { type: REQUIREMENT.UNIT_IS_DEFENDING },
+            { type: REQUIREMENT.COMBAT_IS_IN_HILLS },
+        ],
+        arguments: [{ name: 'Amount', value: 5 }],
+    },
+    localizations: [{
+        description: '+5 Combat Strength for Melee units defending on Hills.',
+    }],
+});
+```
+
+## Common collection patterns
+
+```typescript
+import { COLLECTION } from 'civ7-modding-tools';
+
+// Affects all the player's units
+COLLECTION.PLAYER_UNITS
+
+// Affects all the player's cities
+COLLECTION.PLAYER_CITIES
+
+// Affects all cities in the game (use carefully)
+COLLECTION.ALL_CITIES
+
+// Affects the player themselves (for global effects)
+COLLECTION.OWNER
+
+// Affects tiles adjacent to a location
+COLLECTION.ADJACENT_PLOTS
+
+// Affects the city where the building/improvement is
+COLLECTION.CITY_SELF
+```
+
+## Common effect patterns
+
+### Unit effects
+
+```typescript
+import { EFFECT } from 'civ7-modding-tools';
+
+// +N Combat Strength
+EFFECT.UNIT_ADJUST_COMBAT_STRENGTH
+
+// +N Movement
+EFFECT.UNIT_ADJUST_MOVEMENT
+
+// +N Sight
+EFFECT.UNIT_ADJUST_SIGHT
+
+// +N Range (for ranged units)
+EFFECT.UNIT_ADJUST_RANGE
+
+// +/-N Maintenance cost
+EFFECT.UNIT_ADJUST_MAINTENANCE
+```
+
+### City effects
+
+```typescript
+// Change a yield in the city
+EFFECT.CITY_ADJUST_YIELD
+// Arguments: { name: 'YieldType', value: 'YIELD_PRODUCTION' }, { name: 'Amount', value: 2 }
+
+// Change yields from specific building categories
+EFFECT.PLAYER_ADJUST_CONSTRUCTIBLE_YIELD
+// Arguments: { name: 'Tag', value: 'MILITARY' }, { name: 'YieldType', value: YIELD.PRODUCTION }, { name: 'Amount', value: 10 }
+
+// Change city growth rate
+EFFECT.CITY_ADJUST_GROWTH
+```
+
+### Unlock effects
+
+```typescript
+// Unlock a unit type for production
+EFFECT.PLAYER_ENABLE_UNIT
+// Arguments: { name: 'UnitType', value: 'UNIT_MY_UNIT' }
+
+// Unlock a building for production
+EFFECT.PLAYER_ENABLE_BUILDING
+// Arguments: { name: 'BuildingType', value: 'BUILDING_MY_BUILDING' }
+```
+
+## Civilization-specific modifier
+
+```typescript
+const civModifier = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.OWNER,
+        effect: EFFECT.PLAYER_ADJUST_CONSTRUCTIBLE_YIELD,
+        requirements: [{
+            type: REQUIREMENT.PLAYER_IS_CIVILIZATION_TYPE,
+            arguments: [{ name: 'CivilizationType', value: 'CIVILIZATION_DACIA' }],
+        }],
+        arguments: [
+            { name: 'Tag', value: 'PRODUCTION' },
+            { name: 'YieldType', value: 'YIELD_PRODUCTION' },
+            { name: 'Amount', value: 20 },
+            { name: 'Percent', value: true },
+        ],
+    },
+    localizations: [{
+        description: '+20% Production from production buildings (Dacia only).',
+    }],
+});
+```
+
+## Mountain adjacency modifier
+
+```typescript
+const mountainScience = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_CITIES,
+        effect: EFFECT.CITY_ADJUST_YIELD,
+        requirements: [{
+            type: REQUIREMENT.PLOT_ADJACENT_TO_TERRAIN_TYPE,
+            arguments: [{ name: 'TerrainType', value: 'TERRAIN_MOUNTAIN' }],
+        }],
+        arguments: [
+            { name: 'YieldType', value: 'YIELD_SCIENCE' },
+            { name: 'Amount', value: 1 },
+        ],
+    },
+    localizations: [{ description: '+1 Science for cities adjacent to Mountains.' }],
+});
+```
+
+## Binding modifiers
+
+A modifier has no effect until it is bound to a game entity:
+
+```typescript
+import {
+    CivilizationBuilder,
+    TraditionBuilder,
+    UnitBuilder,
+} from 'civ7-modding-tools';
+
+const bonus = new ModifierBuilder({ /* ... */ });
+
+// Bind to a civilization (applies to all players using this civ)
+const dacia = new CivilizationBuilder({ /* ... */ });
+dacia.bind([bonus]);
+
+// Bind to a tradition (applies when the tradition is adopted)
+const tradition = new TraditionBuilder({ /* ... */ });
+tradition.bind([bonus]);
+
+// Bind to a unit (applies to instances of this unit type)
+const unit = new UnitBuilder({ /* ... */ });
+unit.bind([bonus]);
+
+// Bind to a unique quarter (applies when the quarter is formed)
+const quarter = new UniqueQuarterBuilder({ /* ... */ });
+quarter.bind([bonus]);
+```
+
+## Permanent vs. conditional modifiers
+
+```typescript
+// Permanent: always active for the owner
+const permanent = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_UNITS,
+        effect: EFFECT.UNIT_ADJUST_COMBAT_STRENGTH,
+        permanent: true,        // key field
+        arguments: [{ name: 'Amount', value: 3 }],
+    },
+});
+
+// Conditional: only active when requirements are met
+const wartime = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_UNITS,
+        effect: EFFECT.UNIT_ADJUST_COMBAT_STRENGTH,
+        permanent: false,       // default value
+        requirements: [{ type: REQUIREMENT.PLAYER_IS_AT_WAR }],
+        arguments: [{ name: 'Amount', value: 5 }],
+    },
+});
+```
+
+## OR logic via multiple modifiers
+
+Requirements within one modifier are ANDed. To implement OR, use separate modifiers:
+
+```typescript
+// Bonus when attacking
+const attackBonus = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_UNITS,
+        effect: EFFECT.UNIT_ADJUST_COMBAT_STRENGTH,
+        requirements: [{ type: REQUIREMENT.UNIT_IS_ATTACKING }],
+        arguments: [{ name: 'Amount', value: 5 }],
+    },
+});
+
+// Bonus in hills (separate modifier = OR logic)
+const hillsBonus = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_UNITS,
+        effect: EFFECT.UNIT_ADJUST_COMBAT_STRENGTH,
+        requirements: [{ type: REQUIREMENT.COMBAT_IS_IN_HILLS }],
+        arguments: [{ name: 'Amount', value: 5 }],
+    },
+});
+
+// Both are bound to the same entity for +5 when attacking OR in hills
+dacia.bind([attackBonus, hillsBonus]);
+```
+
+## Debugging tips
+
+<AccordionGroup>
+  <Accordion title="Modifier active but nothing seems to change">
+    Verify the `collection` matches the entity type. `PLAYER_UNITS` targets units; `PLAYER_CITIES` targets cities. Using the wrong collection means the effect never evaluates.
+  </Accordion>
+  <Accordion title="Requirements too restrictive">
+    Multiple requirements are ANDed. If you have five requirements, all five must be true simultaneously. Start with fewer requirements and add them one at a time while testing.
+  </Accordion>
+  <Accordion title="Wrong argument names">
+    Effect argument names are case-sensitive and must exactly match what the game expects. Check the raw XML produced by `mod.build()` and compare to working examples in the game files.
+  </Accordion>
+  <Accordion title="Modifier works for player but not AI">
+    Some effects are not implemented for AI players. Test your mod with AI civilizations by watching the unit tooltip panel or yield numbers in cities.
+  </Accordion>
+</AccordionGroup>
+
+## Related guides
+
+- [Modifier System](/guides/modifier-system) (conceptual overview and raw XML)
+- [Creating Civilizations](/guides/typescript/creating-civilizations)
+- [Traditions](/guides/typescript/traditions)
+- [Unique Quarters](/guides/typescript/unique-quarters)

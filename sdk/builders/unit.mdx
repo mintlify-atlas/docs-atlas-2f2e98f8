@@ -1,0 +1,198 @@
+---
+title: "UnitBuilder"
+description: "Create custom units with stats, costs, class tags, and visual configuration."
+---
+
+`UnitBuilder` generates all XML required for a new unit: the `Units`, `Unit_Costs`, `Unit_Stats`, `TypeTags`, `VisualRemaps`, `IconDefinitions`, and `EnglishText` rows.
+
+## Import
+
+```typescript
+import { UnitBuilder, ACTION_GROUP_BUNDLE, UNIT_CLASS, UNIT } from '@mateicanavra/civ7-sdk';
+```
+
+## Constructor
+
+```typescript
+new UnitBuilder(options?: Partial<UnitBuilderOptions>)
+```
+
+### Top-level options
+
+<ParamField body="actionGroupBundle" type="ActionGroupBundle" required>
+  Determines which age's action groups apply. Use one of:
+  - `ACTION_GROUP_BUNDLE.AGE_ANTIQUITY`
+  - `ACTION_GROUP_BUNDLE.AGE_EXPLORATION`
+  - `ACTION_GROUP_BUNDLE.AGE_MODERN`
+</ParamField>
+
+<ParamField body="unit" type="TPartialRequired<TUnitNode, 'unitType'>" required>
+  Core unit configuration. `unitType` is required and must follow the `UNIT_*` naming convention.
+
+  <Expandable title="unit fields">
+    <ParamField body="unitType" type="\`UNIT_${string}\`" required>
+      Primary key. Example: `'UNIT_CUSTOM_SCOUT'`.
+    </ParamField>
+    <ParamField body="baseMoves" type="number">
+      Movement points per turn.
+    </ParamField>
+    <ParamField body="baseSightRange" type="number">
+      Vision range in tiles.
+    </ParamField>
+    <ParamField body="domain" type="string">
+      Movement domain — `'DOMAIN_LAND'`, `'DOMAIN_SEA'`, or `'DOMAIN_AIR'`.
+    </ParamField>
+    <ParamField body="formationClass" type="string">
+      Formation class constant — see `FORMATION_CLASS`.
+    </ParamField>
+    <ParamField body="coreClass" type="string">
+      Core class constant — see `CORE_CLASS`.
+    </ParamField>
+    <ParamField body="maintenance" type="number">
+      Gold per turn upkeep.
+    </ParamField>
+    <ParamField body="canTrain" type="boolean">
+      Whether cities can train this unit.
+    </ParamField>
+    <ParamField body="canPurchase" type="boolean">
+      Whether the unit can be purchased with gold.
+    </ParamField>
+    <ParamField body="traitType" type="string">
+      Restricts the unit to civilizations with this trait.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="typeTags" type="TObjectValues<typeof UNIT_CLASS>[]" default="[]">
+  Unit class tags from the `UNIT_CLASS` constant. Controls AI behavior, ability eligibility, and promotion class lookup.
+
+  Common values: `UNIT_CLASS.RECON`, `UNIT_CLASS.RECON_ABILITIES`, `UNIT_CLASS.MELEE`, `UNIT_CLASS.RANGED`.
+</ParamField>
+
+<ParamField body="unitCost" type="Partial<TUnitCostNode>" default="{}">
+  Production cost configuration.
+
+  <Expandable title="unitCost fields">
+    <ParamField body="cost" type="number">
+      Base production cost.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="unitStat" type="Partial<TUnitStatNode>" default="{}">
+  Combat stat overrides applied on top of the unit defaults.
+
+  <Expandable title="unitStat fields">
+    <ParamField body="combat" type="number">
+      Melee combat strength.
+    </ParamField>
+    <ParamField body="rangedCombat" type="number">
+      Ranged combat strength.
+    </ParamField>
+    <ParamField body="range" type="number">
+      Ranged attack range in tiles.
+    </ParamField>
+    <ParamField body="bombard" type="number">
+      Bombard strength (siege units).
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="unitReplace" type="TPartialRequired<TUnitReplaceNode, 'replacesUnitType'> | null" default="null">
+  Replace an existing unit for civilizations that own this unit's trait. `replacesUnitType` is required.
+
+  ```typescript
+  unitReplace: { replacesUnitType: UNIT.SCOUT }
+  ```
+</ParamField>
+
+<ParamField body="unitUpgrade" type="TPartialRequired<TUnitUpgradeNode, 'upgradeUnit'> | null" default="null">
+  Set the unit this unit upgrades into.
+
+  ```typescript
+  unitUpgrade: { upgradeUnit: 'UNIT_WARRIOR' }
+  ```
+</ParamField>
+
+<ParamField body="visualRemap" type="TPartialRequired<TVisualRemapNode, 'to'> | null" default="null">
+  Borrow the visual model from another unit. `to` is the target unit type.
+
+  ```typescript
+  visualRemap: { to: UNIT.ARMY_COMMANDER }
+  ```
+</ParamField>
+
+<ParamField body="icon" type="TPartialRequired<TIconDefinitionNode, 'path'>">
+  Icon path for the unit portrait. Defaults to `'fs://game/civ_sym_han'`.
+
+  ```typescript
+  icon: { path: 'fs://game/my-mod/my-unit-icon' }
+  ```
+</ParamField>
+
+<ParamField body="localizations" type="TUnitLocalization[]" default="[]">
+  Localized name and description. When no `language` is specified, defaults to `en_US`.
+
+  ```typescript
+  localizations: [
+    { name: 'Custom Scout', description: 'An enhanced scout unit' },
+    { language: 'fr_FR', name: 'Éclaireur Personnalisé', description: 'Un éclaireur amélioré' },
+  ]
+  ```
+</ParamField>
+
+<ParamField body="unitAdvisories" type="TPartialRequired<TUnitAdvisoryNode, 'advisoryClassType'>[]" default="[]">
+  Advisor hint classifications for this unit. References `ADVISORY` constants.
+</ParamField>
+
+## Generated files
+
+`UnitBuilder` writes four XML files under `/units/<kebab-case-unit-type>/`:
+
+| File | Content | Action group |
+|---|---|---|
+| `current.xml` | Units, TypeTags, Unit_Costs, Unit_Stats, UnitReplaces | Age current |
+| `visual-remap.xml` | VisualRemaps (only if `visualRemap` is set) | Age current |
+| `localization.xml` | EnglishText | Shell + always |
+| `icons.xml` | IconDefinitions | Shell + age current |
+
+## Example
+
+```typescript
+import { Mod, UnitBuilder, ACTION_GROUP_BUNDLE, UNIT_CLASS, UNIT } from '@mateicanavra/civ7-sdk';
+
+const mod = new Mod({ id: 'my-mod', version: '1' });
+
+const unit = new UnitBuilder({
+  actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+  typeTags: [UNIT_CLASS.RECON, UNIT_CLASS.RECON_ABILITIES],
+  unit: {
+    unitType: 'UNIT_CUSTOM_SCOUT',
+    baseMoves: 2,
+    baseSightRange: 10,
+  },
+  unitCost: { cost: 20 },
+  unitStat: { combat: 0 },
+  unitReplace: { replacesUnitType: UNIT.SCOUT },
+  visualRemap: { to: UNIT.ARMY_COMMANDER },
+  localizations: [
+    { name: 'Custom Scout', description: 'An enhanced scout unit' },
+  ],
+});
+
+mod.add([unit]).build('./my-mod');
+```
+
+## Binding to a civilization
+
+To make the unit a unique unit for a specific civilization, pass the builder to `CivilizationBuilder.bind()`:
+
+```typescript
+civilization.bind([unit]);
+```
+
+This automatically sets `traitType` on the unit to the civilization's trait and adds a `CivilizationItem` entry to the shell database.
+
+<Tip>
+  The `unitType` string is used as the prefix for all localization keys. The SDK generates `LOC_UNIT_CUSTOM_SCOUT_NAME` and `LOC_UNIT_CUSTOM_SCOUT_DESCRIPTION` automatically.
+</Tip>

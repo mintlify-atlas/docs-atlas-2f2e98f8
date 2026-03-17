@@ -1,0 +1,255 @@
+---
+title: "Creating Units"
+description: "Step-by-step guide to creating custom units with UnitBuilder."
+keywords: ["units", "UnitBuilder", "UNIT_CLASS", "unit replacement", "visual remap"]
+---
+
+This guide walks through creating custom units using `UnitBuilder`. Units are one of the most common mod additions — whether you want a unique civilization unit, a balanced replacement, or an entirely new combat type.
+
+## Prerequisites
+
+- SDK installed and a `Mod` instance created (see [Quickstart](/quickstart))
+- Basic understanding of [action group bundles](/guides/modding-architecture#action-groups-and-load-phases)
+
+## Step-by-step: custom scout unit
+
+<Steps>
+  <Step title="Import the required builders and constants">
+    ```typescript
+    import {
+        ACTION_GROUP_BUNDLE,
+        Mod,
+        UNIT,
+        UNIT_CLASS,
+        UnitBuilder,
+    } from 'civ7-modding-tools';
+    ```
+  </Step>
+
+  <Step title="Create a Mod instance">
+    ```typescript
+    const mod = new Mod({
+        id: 'my-scout-mod',
+        version: '1.0',
+    });
+    ```
+  </Step>
+
+  <Step title="Define the unit">
+    ```typescript
+    const customScout = new UnitBuilder({
+        // Which age this unit belongs to
+        actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+
+        // Type tags classify the unit for ability targeting
+        typeTags: [UNIT_CLASS.RECON, UNIT_CLASS.RECON_ABILITIES],
+
+        // Core unit properties
+        unit: {
+            unitType: 'UNIT_CUSTOM_SCOUT',
+            baseMoves: 3,
+            baseSightRange: 3,
+        },
+
+        // Production cost
+        unitCost: { cost: 60 },
+
+        // Combat stats
+        unitStat: { combat: 15 },
+
+        // Replace the base Scout (optional)
+        unitReplace: { replacesUnitType: UNIT.SCOUT },
+
+        // Use the Scout's existing 3D model
+        visualRemap: { to: UNIT.SCOUT },
+
+        // In-game text
+        localizations: [{
+            name: 'Elite Scout',
+            description: 'A faster scout with extended visibility.',
+        }],
+    });
+    ```
+  </Step>
+
+  <Step title="Add to mod and build">
+    ```typescript
+    mod.add([customScout]).build('./dist');
+    ```
+  </Step>
+</Steps>
+
+## Key parameters explained
+
+### `actionGroupBundle`
+
+Determines which age the unit loads in. Available values:
+
+| Value | Age |
+|---|---|
+| `ACTION_GROUP_BUNDLE.AGE_ANTIQUITY` | Antiquity |
+| `ACTION_GROUP_BUNDLE.AGE_EXPLORATION` | Exploration |
+| `ACTION_GROUP_BUNDLE.AGE_MODERN` | Modern |
+
+### `typeTags`
+
+Type tags control which abilities and modifiers can target this unit. Common values:
+
+| Constant | Unit class |
+|---|---|
+| `UNIT_CLASS.MELEE` | Standard melee infantry |
+| `UNIT_CLASS.HEAVY` | Heavy melee units |
+| `UNIT_CLASS.RANGED` | Ranged units |
+| `UNIT_CLASS.RECON` | Scout/recon units |
+| `UNIT_CLASS.RECON_ABILITIES` | Grants standard recon abilities |
+| `UNIT_CLASS.ANTI_CAVALRY` | Spearmen and pike units |
+
+### `unit` — core stats
+
+| Field | Description |
+|---|---|
+| `unitType` | Unique string identifier. Use a prefix (e.g., `UNIT_MYMOD_`). |
+| `baseMoves` | Movement points per turn. |
+| `baseSightRange` | Tiles of visibility. |
+| `targetingRange` | For ranged units: attack range in tiles. |
+| `ignoresZoneOfControl` | `true` to ignore enemy ZOC. |
+| `canCapture` | `true` to allow city capture. |
+
+### `unitStat` — combat stats
+
+```typescript
+unitStat: {
+    combat: 25,          // Melee combat strength
+    rangedCombat: 30,    // Ranged attack strength
+    bombardCombat: 0,    // Siege bombardment strength
+    religiousCombat: 0,  // Theological combat strength
+    antiAirCombat: 0,    // Anti-air strength
+},
+```
+
+### `unitReplace`
+
+Makes this unit replace an existing unit for all civilizations (or just your civilization if combined with a civilization trait):
+
+```typescript
+unitReplace: { replacesUnitType: UNIT.SWORDSMAN }
+```
+
+### `visualRemap`
+
+Reuses an existing unit's 3D model and animations. Required if you do not have custom art assets:
+
+```typescript
+visualRemap: { to: UNIT.WARRIOR }
+```
+
+## Advanced unit configuration
+
+### Melee unit with full stats
+
+```typescript
+const heavyInfantry = new UnitBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    typeTags: [UNIT_CLASS.MELEE, UNIT_CLASS.HEAVY],
+    unit: {
+        unitType: 'UNIT_MYMOD_HEAVY_INFANTRY',
+        baseMoves: 2,
+        baseSightRange: 2,
+        canCapture: true,
+    },
+    unitCost: { cost: 100 },
+    unitStat: {
+        combat: 30,
+        rangedCombat: 0,
+        bombardCombat: 0,
+        religiousCombat: 0,
+        antiAirCombat: 0,
+    },
+    visualRemap: { to: UNIT.SWORDSMAN },
+    localizations: [{
+        name: 'Heavy Infantry',
+        description: 'Disciplined heavy infantry capable of capturing cities.',
+    }],
+});
+```
+
+### Unit with a modifier
+
+Attach gameplay effects using `ModifierBuilder` and `.bind()`:
+
+```typescript
+import { ModifierBuilder, COLLECTION, EFFECT, REQUIREMENT } from 'civ7-modding-tools';
+
+const terrainBonus = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_UNITS,
+        effect: EFFECT.UNIT_ADJUST_COMBAT_STRENGTH,
+        requirements: [{ type: REQUIREMENT.COMBAT_IS_IN_HILLS }],
+        arguments: [{ name: 'Amount', value: 5 }],
+    },
+    localizations: [{ description: '+5 Combat Strength in Hills.' }],
+});
+
+const mountainUnit = new UnitBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    typeTags: [UNIT_CLASS.MELEE],
+    unit: { unitType: 'UNIT_MYMOD_MOUNTAIN_FIGHTER', baseMoves: 2, baseSightRange: 2 },
+    unitCost: { cost: 80 },
+    unitStat: { combat: 28 },
+    visualRemap: { to: UNIT.WARRIOR },
+    localizations: [{ name: 'Mountain Fighter', description: 'Powerful in rough terrain.' }],
+});
+
+mountainUnit.bind([terrainBonus]);
+```
+
+### Using custom icons
+
+```typescript
+import { ImportFileBuilder, UnitBuilder, ACTION_GROUP_BUNDLE } from 'civ7-modding-tools';
+
+const mod = new Mod({ id: 'my-unit-mod', version: '1.0' });
+
+const unitIcon = new ImportFileBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    content: './assets/my-unit-icon.dds',
+    name: 'unit_icon_my_unit',
+});
+
+const myUnit = new UnitBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    typeTags: [UNIT_CLASS.MELEE],
+    unit: { unitType: 'UNIT_MYMOD_WARRIOR', baseMoves: 2, baseSightRange: 2 },
+    unitCost: { cost: 70 },
+    unitStat: { combat: 20 },
+    icon: `fs://game/${mod.id}/${unitIcon.name}`,
+    localizations: [{ name: 'My Warrior', description: 'Custom warrior unit.' }],
+});
+
+mod.add([unitIcon, myUnit]).build('./dist');
+```
+
+<Note>
+Icon files must be in DDS format for the game to load them. PNG files work during testing but DDS is required for distribution.
+</Note>
+
+## Common mistakes
+
+<AccordionGroup>
+  <Accordion title="Unit doesn't appear in production queue">
+    The unit likely has no valid `typeTags`, is missing a `unitStat`, or its `actionGroupBundle` does not match the current age. Double-check that the unit's age matches where you're testing.
+  </Accordion>
+  <Accordion title="Unit appears but has no model">
+    Add a `visualRemap` pointing to an existing unit. Without this, the game has no 3D model to display.
+  </Accordion>
+  <Accordion title="Unit is available to all civilizations unexpectedly">
+    `unitReplace` replaces the unit for all civs. To restrict it to your civilization, add a `TraitType` linking the unit to a civilization-specific trait instead of using `unitReplace`.
+  </Accordion>
+</AccordionGroup>
+
+## Related guides
+
+- [Creating Civilizations](/guides/typescript/creating-civilizations)
+- [Creating Buildings](/guides/typescript/creating-buildings)
+- [Modifiers and Effects](/guides/typescript/modifiers-and-effects)
+- [Assets and Icons](/guides/typescript/assets-and-icons)

@@ -1,0 +1,70 @@
+---
+title: "data render"
+description: "Render a Graphviz DOT file to SVG using a WebAssembly engine — no native Graphviz install required."
+---
+
+## Synopsis
+
+```bash
+civ7 data render <input> [output]
+```
+
+## Description
+
+`data render` converts a Graphviz DOT file to SVG. Rendering runs entirely in WebAssembly via `@hpcc-js/wasm`, so no native Graphviz installation is needed on your system.
+
+You can pass either a path to a `.dot` file or a seed name. When a seed is provided, the command resolves the default input path as `out/<seed>/graph.dot` and writes the output to `out/<seed>/graph.svg`.
+
+## Arguments
+
+<ParamField path="input" type="string" required>
+  Path to the DOT file to render, or a seed name (e.g., `LEADER_AMANITORE`). When a seed is provided, the CLI resolves the path as `out/<seed>/graph.dot` relative to the project root.
+</ParamField>
+
+<ParamField path="output" type="string">
+  Path for the output SVG file. Defaults to `graph.svg` in the same directory as the input file.
+</ParamField>
+
+## Flags
+
+<ParamField query="--engine" type="string" default="dot">
+  Graphviz layout engine. Options: `dot`, `neato`, `fdp`, `sfdp`, `circo`, `twopi`.
+</ParamField>
+
+<ParamField query="--format" type="string" default="svg">
+  Output format. Currently only `svg` is supported.
+</ParamField>
+
+<ParamField query="--config" type="string">
+  Path to a custom `civ.config.jsonc` file.
+</ParamField>
+
+<ParamField query="--profile" type="string" default="default">
+  Profile key to use from the config file.
+</ParamField>
+
+## Examples
+
+<CodeGroup>
+
+```bash Render from explicit DOT path
+civ7 data render ./out/rome/graph.dot ./out/rome/graph.svg
+```
+
+```bash Render using a seed name (resolves paths automatically)
+civ7 data render LEADER_AMANITORE
+```
+
+```bash Use a different layout engine
+civ7 data render ./out/rome/graph.dot --engine neato
+```
+
+```bash Render and write to a custom output path
+civ7 data render CIVILIZATION_ROME ./exports/rome-graph.svg
+```
+
+</CodeGroup>
+
+<Note>
+  To run the full crawl + render + view pipeline in one command, use `civ7 data explore` instead.
+</Note>

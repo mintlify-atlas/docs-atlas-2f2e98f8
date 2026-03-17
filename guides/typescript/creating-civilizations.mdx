@@ -1,0 +1,302 @@
+---
+title: "Creating Civilizations"
+description: "Step-by-step guide to building a full civilization with CivilizationBuilder."
+keywords: ["civilization", "CivilizationBuilder", "traits", "city names", "LeaderUnlockBuilder", "CivilizationUnlockBuilder"]
+---
+
+Creating a civilization is the most comprehensive modding task — it combines multiple builders into a cohesive whole. This guide covers the full process from civilization definition through traits, leaders, and age transitions.
+
+## Prerequisites
+
+- SDK installed (see [Quickstart](/quickstart))
+- Familiarity with [modifiers](/guides/modifier-system)
+- Understanding of the [Ages system](/guides/modding-architecture#the-ages-system)
+
+## Step-by-step: creating a civilization
+
+<Steps>
+  <Step title="Import dependencies">
+    ```typescript
+    import {
+        ACTION_GROUP_BUNDLE,
+        CivilizationBuilder,
+        ImportFileBuilder,
+        LeaderUnlockBuilder,
+        ModifierBuilder,
+        Mod,
+        AGE,
+        TRAIT,
+        TAG_TRAIT,
+        COLLECTION,
+        EFFECT,
+        REQUIREMENT,
+        UNIT_CLASS,
+    } from 'civ7-modding-tools';
+    ```
+  </Step>
+
+  <Step title="Create a Mod instance">
+    ```typescript
+    const mod = new Mod({
+        id: 'my-civ-mod',
+        version: '1.0',
+    });
+    ```
+  </Step>
+
+  <Step title="Import the civilization icon">
+    ```typescript
+    const civIcon = new ImportFileBuilder({
+        actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+        content: './assets/civ-icon.dds',
+        name: 'civ_sym_dacia',
+    });
+    ```
+  </Step>
+
+  <Step title="Define the civilization">
+    ```typescript
+    const dacia = new CivilizationBuilder({
+        actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+
+        civilization: {
+            // Age domain: which age this civilization appears in
+            domain: 'AntiquityAgeCivilizations',
+            civilizationType: 'CIVILIZATION_DACIA',
+        },
+
+        // System and gameplay traits
+        civilizationTraits: [
+            TRAIT.ANTIQUITY_CIV,
+            TRAIT.ATTRIBUTE_MILITARISTIC,
+            TRAIT.ATTRIBUTE_CULTURAL,
+        ],
+
+        // Tags used by modifier targeting
+        civilizationTags: [
+            TAG_TRAIT.CULTURAL,
+            TAG_TRAIT.MILITARY,
+        ],
+
+        // Reference to the imported icon
+        icon: {
+            path: `fs://game/${mod.id}/${civIcon.name}`,
+        },
+
+        // All visible text
+        localizations: [{
+            name: 'Dacia',
+            description: 'Ancient kingdom in the Carpathians known for fierce warriors and rich gold mines.',
+            fullName: 'Kingdom of Dacia',
+            adjective: 'Dacian',
+            cityNames: [
+                'Sarmizegetusa', 'Apulum', 'Napoca',
+                'Porolissum', 'Sucidava', 'Buridava',
+                'Cumidava', 'Piroboridava', 'Dierna',
+                'Tibiscum', 'Drobeta', 'Genucla',
+            ],
+        }],
+    });
+    ```
+  </Step>
+
+  <Step title="Create the unique ability modifier">
+    ```typescript
+    const carpathianDefenders = new ModifierBuilder({
+        modifier: {
+            collection: COLLECTION.PLAYER_UNITS,
+            effect: EFFECT.UNIT_ADJUST_COMBAT_STRENGTH,
+            permanent: true,
+            requirements: [
+                {
+                    type: REQUIREMENT.UNIT_TAG_MATCHES,
+                    arguments: [{ name: 'Tag', value: UNIT_CLASS.MELEE }],
+                },
+                { type: REQUIREMENT.COMBAT_IS_IN_HILLS },
+            ],
+            arguments: [{ name: 'Amount', value: 5 }],
+        },
+        localizations: [{
+            description: 'Carpathian Defenders: +5 Combat Strength for Melee units in Hills.',
+        }],
+    });
+    ```
+  </Step>
+
+  <Step title="Bind the modifier to the civilization">
+    ```typescript
+    dacia.bind([carpathianDefenders]);
+    ```
+  </Step>
+
+  <Step title="Create a leader unlock">
+    ```typescript
+    const decebalusLeadsDacia = new LeaderUnlockBuilder({
+        actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+        leaderUnlock: {
+            leaderType: 'LEADER_DECEBALUS',
+            type: 'CIVILIZATION_DACIA',
+            ageType: AGE.ANTIQUITY,
+        },
+        leaderCivilizationBias: { bias: 10 },
+        localizations: [{
+            tooltip: '[B]Decebalus[/B] leads [B]Dacia[/B] in the Antiquity Age.',
+        }],
+    });
+    ```
+  </Step>
+
+  <Step title="Build the mod">
+    ```typescript
+    mod.add([civIcon, dacia, decebalusLeadsDacia]).build('./dist');
+    ```
+  </Step>
+</Steps>
+
+## Civilization traits
+
+Traits serve two purposes: they implement gameplay abilities (via modifier binding), and they signal the game's AI and systems how to classify the civilization.
+
+### Required system traits
+
+Every Antiquity-age civilization must include:
+
+```typescript
+civilizationTraits: [
+    TRAIT.ANTIQUITY_CIV,  // Marks this as an Antiquity civilization
+]
+```
+
+For Exploration and Modern age:
+
+```typescript
+civilizationTraits: [
+    TRAIT.EXPLORATION_CIV,   // or TRAIT.MODERN_CIV
+]
+```
+
+### AI personality traits
+
+These guide the AI's behavior when playing your civilization:
+
+| Trait | AI tendency |
+|---|---|
+| `TRAIT.ATTRIBUTE_MILITARISTIC` | Prefers military expansion |
+| `TRAIT.ATTRIBUTE_CULTURAL` | Focuses on culture development |
+| `TRAIT.ATTRIBUTE_SCIENTIFIC` | Prioritizes science and technology |
+| `TRAIT.ATTRIBUTE_ECONOMIC` | Focuses on gold and trade |
+
+## Adding unique units and buildings
+
+Unique units and buildings are defined with their own builders and then bound to the civilization:
+
+```typescript
+import { UnitBuilder, ConstructibleBuilder, UNIT_CLASS, CONSTRUCTIBLE_TYPE_TAG, YIELD } from 'civ7-modding-tools';
+
+// Unique unit
+const falxWarrior = new UnitBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    typeTags: [UNIT_CLASS.MELEE, UNIT_CLASS.HEAVY],
+    unit: { unitType: 'UNIT_DACIA_FALX_WARRIOR', baseMoves: 2, baseSightRange: 2 },
+    unitCost: { cost: 90 },
+    unitStat: { combat: 35 },
+    localizations: [{
+        name: 'Falx Warrior',
+        description: 'Dacian warrior wielding the curved falx blade.',
+    }],
+});
+
+// Unique building
+const goldMine = new ConstructibleBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    constructible: { constructibleType: 'BUILDING_DACIA_GOLD_MINE' },
+    building: {},
+    typeTags: [CONSTRUCTIBLE_TYPE_TAG.UNIQUE, CONSTRUCTIBLE_TYPE_TAG.ECONOMY],
+    constructibleYieldChanges: [
+        { yieldType: YIELD.GOLD, yieldChange: 5 },
+    ],
+    localizations: [{
+        name: 'Dacian Gold Mine',
+        description: 'Rich gold mines famous throughout antiquity.',
+    }],
+});
+
+// Bind both to the civilization
+dacia.bind([falxWarrior, goldMine]);
+
+mod.add([civIcon, dacia, falxWarrior, goldMine, decebalusLeadsDacia]).build('./dist');
+```
+
+## Multiple abilities
+
+Bind multiple modifiers to layer abilities:
+
+```typescript
+const hillsCombat = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_UNITS,
+        effect: EFFECT.UNIT_ADJUST_COMBAT_STRENGTH,
+        permanent: true,
+        requirements: [{ type: REQUIREMENT.COMBAT_IS_IN_HILLS }],
+        arguments: [{ name: 'Amount', value: 3 }],
+    },
+});
+
+const goldFromMines = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.OWNER,
+        effect: EFFECT.PLAYER_ADJUST_CONSTRUCTIBLE_YIELD,
+        permanent: true,
+        arguments: [
+            { name: 'Tag', value: 'PRODUCTION' },
+            { name: 'YieldType', value: 'YIELD_GOLD' },
+            { name: 'Amount', value: 25 },
+            { name: 'Percent', value: true },
+        ],
+    },
+});
+
+dacia.bind([hillsCombat, goldFromMines]);
+```
+
+## Age transitions with CivilizationUnlockBuilder
+
+Define which civilization a player transitions into at the end of Antiquity:
+
+```typescript
+import { CivilizationUnlockBuilder } from 'civ7-modding-tools';
+
+const daciaToRome = new CivilizationUnlockBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_EXPLORATION,
+    from: {
+        civilizationType: 'CIVILIZATION_DACIA',
+        ageType: AGE.ANTIQUITY,
+    },
+    to: {
+        civilizationType: 'CIVILIZATION_ROME',
+        ageType: AGE.EXPLORATION,
+    },
+});
+
+mod.add([daciaToRome]);
+```
+
+<Note>
+You can define multiple `CivilizationUnlockBuilder` entries for the same source civilization to give players a choice of which civilization to transition into.
+</Note>
+
+## Domain values by age
+
+| Age | Domain value |
+|---|---|
+| Antiquity | `AntiquityAgeCivilizations` |
+| Exploration | `ExplorationAgeCivilizations` |
+| Modern | `ModernAgeCivilizations` |
+
+## Related guides
+
+- [Leaders and Ages](/guides/typescript/leaders-and-ages)
+- [Creating Units](/guides/typescript/creating-units)
+- [Creating Buildings](/guides/typescript/creating-buildings)
+- [Traditions](/guides/typescript/traditions)
+- [Example: Dacia Civilization](/guides/examples/dacia-civilization)

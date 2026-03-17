@@ -1,97 +1,81 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Civ7 Modding Tools"
+description: "A TypeScript toolkit for programmatically creating and managing Civilization VII mods — from type-safe builders to CLI-powered resource extraction."
 ---
 
-## Setting up
+## What is Civ7 Modding Tools?
 
-Get your documentation site up and running in minutes.
+Civ7 Modding Tools is an open-source TypeScript monorepo that gives you everything you need to build Civilization VII mods with code instead of hand-editing XML files.
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="TypeScript SDK" icon="code" href="/sdk/overview">
+    Strongly-typed builders for units, civilizations, constructibles, progression trees, and more.
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="CLI Tools" icon="terminal" href="/cli/overview">
+    `civ7` command for crawling XML resources, visualizing dependency graphs, and managing archives.
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Mod Management" icon="boxes-stacked" href="/cli/commands/mod-git">
+    Import, sync, and deploy mods via git subtree with a single command.
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="Graph Visualization" icon="diagram-project" href="/cli/commands/data-explore">
+    Explore game entity relationships interactively with a WebAssembly-powered Graphviz viewer.
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## Get started
 
-Everything you need to create world-class documentation.
+<CardGroup cols={3}>
+  <Card title="Prerequisites" icon="list-check" href="/installation/prerequisites">
+    Node 22.14+ and Bun — everything you need before you begin.
+  </Card>
+  <Card title="Installation" icon="download" href="/installation/setup">
+    Install dependencies, link the CLI, and pull game data in two commands.
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Build your first mod in minutes using the TypeScript SDK.
+  </Card>
+</CardGroup>
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+## Core capabilities
 
-## Need inspiration?
+<CardGroup cols={2}>
+  <Card title="SDK builders" icon="hammer" href="/sdk/builders/mod">
+    High-level builder classes abstract all XML generation. Configure entities in TypeScript and call `.build()` — the SDK handles the rest.
+  </Card>
+  <Card title="Game constants" icon="database" href="/sdk/constants/overview">
+    Comprehensive, strongly-typed constants for every unit type, ability, effect, terrain, and resource in the base game.
+  </Card>
+  <Card title="Resource extraction" icon="file-zipper" href="/cli/commands/data-zip">
+    Archive and extract official game resources on demand using profile-based configuration.
+  </Card>
+  <Card title="XML graph crawler" icon="network-wired" href="/cli/commands/data-crawl">
+    BFS-crawl Civ7's XML database from any seed entity to produce a dependency graph, manifest, and DOT file.
+  </Card>
+  <Card title="Localization" icon="language" href="/guides/typescript/assets-and-icons">
+    Built-in multi-language support — attach localized names and descriptions to any mod entity.
+  </Card>
+  <Card title="Modding guides" icon="book-open" href="/guides/modding-architecture">
+    Community and official guides covering database modding, the modifier system, and more.
+  </Card>
+</CardGroup>
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+## How it works
+
+<Steps>
+  <Step title="Install the toolkit">
+    Run `bun install` and `bun run link:cli` to install all packages and register the global `civ7` binary.
+  </Step>
+  <Step title="Pull game data">
+    Run `bun run refresh:data` to extract official game resources into `.civ7/outputs/` using the CLI.
+  </Step>
+  <Step title="Write your mod in TypeScript">
+    Import builders from `@mateicanavra/civ7-sdk`, configure your entities, and call `mod.build('./my-mod')`.
+  </Step>
+  <Step title="Install and play">
+    Copy the generated mod folder to your Civilization VII mods directory and launch the game.
+  </Step>
+</Steps>
+
+<Note>
+  This project requires **Node 22.14+** and **Bun**. See [Prerequisites](/installation/prerequisites) before getting started.
+</Note>

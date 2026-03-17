@@ -1,0 +1,161 @@
+---
+title: "Configuration"
+description: "How `civ.config.jsonc` works, what each section means, and how to override settings with CLI flags."
+---
+
+The `civ7` CLI reads a `civ.config.jsonc` file at your workspace root for all resource paths and profile settings. The file uses JSONC format — standard JSON that allows `//` and `/* */` comments.
+
+## Config file location
+
+The CLI discovers the workspace root by walking up the directory tree until it finds a `package.json` that declares a `workspaces` field. Place `civ.config.jsonc` in that root directory.
+
+## Full example
+
+This is the real `civ.config.jsonc` from the repository:
+
+```jsonc
+{
+    "$schema": "./packages/config/schema/civ.config.schema.json",
+    "inputs": {
+        // "installDir": "~/Library/Application Support/Steam/steamapps/common/Sid Meier's Civilization VII/CivilizationVII.app/Contents/Resources"
+    },
+    "outputs": {
+        "baseDir": ".civ7/outputs",
+        "zip": {
+            "dir": "archives",
+            "name": "civ7-official-resources.zip"
+        },
+        "unzip": {
+            "dir": "resources"
+        },
+        "graph": {
+            "dir": "graph"
+        }
+    },
+    "profiles": {
+        "default": {
+            "description": "Core gameplay data, excluding large assets. Used by the official docs site.",
+            "zip": {
+                "exclude": [
+                    "*/Platforms/*", "*/movies/*", "*/data/icons/*", "*/fonts/*",
+                    "*.mp4", "*.webm", "*.mov", "*.ogg", "*.mp3", "*.wav",
+                    "*.dds", "*.png", "*.ttf", "*.otf", "*.js.map"
+                ]
+            }
+        },
+        "full": {
+            "description": "A complete set of game resources, including all assets.",
+            "zip": {
+                "exclude": []
+            }
+        },
+        "assets": {
+            "description": "Only media assets like icons, fonts, and movies.",
+            "zip": {
+                "include": [
+                    "Assets/*", "movies/*", "data/icons/*", "fonts/*"
+                ]
+            }
+        }
+    }
+}
+```
+
+## Sections
+
+### `inputs`
+
+Defines where to find the source Civilization VII installation.
+
+<ParamField body="inputs.installDir" type="string">
+  Absolute path to the Civilization VII resources directory. When omitted, the CLI attempts to detect it from common OS-specific default install locations. Uncomment and set this if auto-detection fails.
+
+  **macOS (Steam) example:**
+  `~/Library/Application Support/Steam/steamapps/common/Sid Meier's Civilization VII/CivilizationVII.app/Contents/Resources`
+</ParamField>
+
+### `outputs`
+
+Sets default destinations for generated files.
+
+<ParamField body="outputs.baseDir" type="string">
+  Base directory for all outputs. Defaults to `.civ7/outputs` relative to the workspace root. All other output paths are resolved relative to this directory.
+</ParamField>
+
+<ParamField body="outputs.zip.dir" type="string">
+  Subdirectory within `baseDir` where zip archives are stored. Default: `archives`.
+</ParamField>
+
+<ParamField body="outputs.zip.name" type="string">
+  Default filename for the created zip archive. Default: `civ7-official-resources.zip`.
+</ParamField>
+
+<ParamField body="outputs.unzip.dir" type="string">
+  Subdirectory within `baseDir` where extracted XML resources are placed. Default: `resources`. The crawl, explore, and slice commands use this as the XML root when `--root` is not provided.
+</ParamField>
+
+<ParamField body="outputs.graph.dir" type="string">
+  Subdirectory within `baseDir` for graph outputs (JSON, DOT, SVG, HTML, manifest). Default: `graph`.
+</ParamField>
+
+### `profiles`
+
+Named groups that can override output paths and set include/exclude patterns for archiving.
+
+```jsonc
+"profiles": {
+    "<profile-name>": {
+        "description": "Human-readable description",
+        "zip": {
+            "include": ["glob/pattern"],  // include only these
+            "exclude": ["glob/pattern"]   // exclude these
+        }
+    }
+}
+```
+
+<ParamField body="profiles.<name>.description" type="string">
+  A human-readable label for the profile, shown in CLI warnings and summary output.
+</ParamField>
+
+<ParamField body="profiles.<name>.zip.include" type="string[]">
+  Glob patterns for files to include in the archive. When set, only matching files are archived.
+</ParamField>
+
+<ParamField body="profiles.<name>.zip.exclude" type="string[]">
+  Glob patterns for files to exclude from the archive. Applied after any `include` list.
+</ParamField>
+
+The three built-in profiles are:
+
+| Profile | Description |
+|---------|-------------|
+| `default` | Core gameplay data, excluding large assets (images, audio, video, fonts) |
+| `full` | Complete set of game resources with no exclusions |
+| `assets` | Only media assets: icons, fonts, movies |
+
+## Overriding config with CLI flags
+
+You can bypass or supplement configuration with flags on individual commands:
+
+| Flag | Applies to | Description |
+|------|-----------|-------------|
+| `--config <path>` | All commands | Path to a custom config file instead of the auto-discovered one |
+| `--profile <name>` | `crawl`, `explore`, `render`, `slice` | Which profile to use from the config |
+| `--root <path>` | `crawl`, `explore`, `slice` | Override the XML root directory directly |
+| `--dest <path>` | `slice` | Override the destination directory for sliced files |
+| `--installDir <path>` | `zip` | Override the Civ7 install directory (source for zipping) |
+
+<Tip>
+  If you get the error `"Could not determine XML root directory"`, either set `--root` on the command or define `outputs.unzip.dir` in your config and run `civ7 data unzip` to populate it.
+</Tip>
+
+## JSON schema
+
+The config supports a `$schema` field pointing to the bundled schema file at `packages/config/schema/civ.config.schema.json`. Adding this to your config enables auto-complete and validation in editors that support JSON Schema (VS Code, JetBrains IDEs, etc.).
+
+```jsonc
+{
+    "$schema": "./packages/config/schema/civ.config.schema.json"
+}
+```

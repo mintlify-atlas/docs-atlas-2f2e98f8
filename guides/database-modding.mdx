@@ -1,0 +1,293 @@
+---
+title: "Database Modding"
+description: "Civ7's XML database structure, how tables map to game entities, and common patterns for modifications."
+keywords: ["database", "XML", "tables", "types", "kinds", "modifiers", "schema"]
+---
+
+Civilization VII stores all game data in a relational SQLite database. Mods interact with that database by providing XML files that are parsed and merged at load time. Understanding the database structure lets you make precise, targeted changes.
+
+## How XML becomes database rows
+
+Each XML file you load via `UpdateDatabase` follows a consistent structure:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<Database>
+  <!-- Table name maps directly to a database table -->
+  <Civilizations>
+    <!-- Each Row maps to one INSERT or UPDATE -->
+    <Row CivilizationType="CIVILIZATION_DACIA"
+         Name="LOC_CIVILIZATION_DACIA_NAME"
+         Adjective="LOC_CIVILIZATION_DACIA_ADJECTIVE"
+         Description="LOC_CIVILIZATION_DACIA_DESCRIPTION" />
+  </Civilizations>
+</Database>
+```
+
+The game merges your rows with existing data. If a row with the same primary key already exists, the game updates it; otherwise it inserts a new row.
+
+## The Types table and the Kind system
+
+Before adding most game entities, you must register their type in the `Types` table:
+
+```xml
+<Types>
+  <Row Type="UNIT_FALX_WARRIOR" Kind="KIND_UNIT"/>
+  <Row Type="CIVILIZATION_DACIA" Kind="KIND_CIVILIZATION"/>
+  <Row Type="BUILDING_MOUNTAIN_SANCTUARY" Kind="KIND_BUILDING"/>
+  <Row Type="TRAIT_CIVILIZATION_DACIA_CARPATHIAN" Kind="KIND_TRAIT"/>
+  <Row Type="MODIFIER_DACIA_COMBAT_HILLS" Kind="KIND_MODIFIER"/>
+</Types>
+```
+
+The `Kind` value tells the game how to classify the type. Common kinds:
+
+| Kind | Used for |
+|---|---|
+| `KIND_UNIT` | Military and civilian units |
+| `KIND_CIVILIZATION` | Civilization definitions |
+| `KIND_LEADER` | Leader definitions |
+| `KIND_BUILDING` | Buildings (constructibles) |
+| `KIND_IMPROVEMENT` | Tile improvements |
+| `KIND_TRAIT` | Civilization and leader traits |
+| `KIND_MODIFIER` | Game effect modifiers |
+| `KIND_TRADITION` | Policy cards / traditions |
+| `KIND_TECHNOLOGY` | Technologies |
+| `KIND_CIVIC` | Civic policies |
+
+<Warning>
+If you define a unit but forget the corresponding `Types` row, the game will silently ignore the unit or produce undefined behavior at runtime.
+</Warning>
+
+## Core table reference
+
+### Civilizations
+
+```sql
+CREATE TABLE "Civilizations" (
+  "CivilizationType"  TEXT NOT NULL,
+  "Name"              TEXT NOT NULL,
+  "Adjective"         TEXT NOT NULL,
+  "Description"       TEXT,
+  "Icon"              TEXT,
+  "SortIndex"         INTEGER,
+  PRIMARY KEY("CivilizationType")
+);
+```
+
+Key related tables:
+- `CivilizationTraits` — links a civilization to trait types that implement its abilities
+- `CivilizationLeaders` — links civilizations to compatible leaders
+- `CivilizationDomains` — assigns a civilization to an age domain (e.g., `AntiquityAgeCivilizations`)
+
+### Units
+
+```sql
+CREATE TABLE "Units" (
+  "UnitType"            TEXT NOT NULL,
+  "Name"                TEXT NOT NULL,
+  "Description"         TEXT,
+  "Domain"              TEXT NOT NULL,
+  "FormationClass"      TEXT,
+  "Cost"                INTEGER,
+  "Maintenance"         INTEGER,
+  "BaseMoves"           INTEGER,
+  "Combat"              INTEGER,
+  "RangedCombat"        INTEGER,
+  "Range"               INTEGER,
+  "PrereqTech"          TEXT,
+  "PrereqCivic"         TEXT,
+  "ReplacesUnitType"    TEXT,
+  "PromotionClass"      TEXT,
+  PRIMARY KEY("UnitType")
+);
+```
+
+### Buildings and Quarters
+
+```sql
+CREATE TABLE "Buildings" (
+  "BuildingType"            TEXT NOT NULL,
+  "Name"                    TEXT NOT NULL,
+  "Description"             TEXT,
+  "Cost"                    INTEGER,
+  "Maintenance"             INTEGER,
+  "PrereqTech"              TEXT,
+  "PrereqCivic"             TEXT,
+  "PrereqDistrict"          TEXT,
+  "ReplacementBuildingType" TEXT,
+  "IsWonder"                BOOLEAN DEFAULT false,
+  PRIMARY KEY("BuildingType")
+);
+```
+
+### Leaders
+
+```sql
+CREATE TABLE "Leaders" (
+  "LeaderType"   TEXT NOT NULL,
+  "Name"         TEXT NOT NULL,
+  "IsPlayable"   BOOLEAN NOT NULL DEFAULT true,
+  "Icon"         TEXT,
+  PRIMARY KEY("LeaderType")
+);
+```
+
+## Localization
+
+All text in the game is keyed via `LOC_` prefixed tags. The `LocalizedText` table stores the actual strings:
+
+```xml
+<GameData>
+  <LocalizedText>
+    <Row Tag="LOC_CIVILIZATION_DACIA_NAME" Language="en_US">
+      <Text>Dacia</Text>
+    </Row>
+    <Row Tag="LOC_CIVILIZATION_DACIA_ADJECTIVE" Language="en_US">
+      <Text>Dacian</Text>
+    </Row>
+    <Row Tag="LOC_UNIT_DACIA_FALX_WARRIOR_NAME" Language="en_US">
+      <Text>Falx Warrior</Text>
+    </Row>
+  </LocalizedText>
+</GameData>
+```
+
+<Tip>
+Always use English (`en_US`) as the base language. Add other language rows as needed. The game falls back to English when a translation is missing.
+</Tip>
+
+## Common modding patterns
+
+### Adding a new civilization
+
+```xml
+<Database>
+  <Types>
+    <Row Type="CIVILIZATION_DACIA" Kind="KIND_CIVILIZATION"/>
+    <Row Type="TRAIT_CIVILIZATION_DACIA_ABILITY" Kind="KIND_TRAIT"/>
+  </Types>
+
+  <Civilizations>
+    <Row CivilizationType="CIVILIZATION_DACIA"
+         Name="LOC_CIVILIZATION_DACIA_NAME"
+         Adjective="LOC_CIVILIZATION_DACIA_ADJECTIVE"
+         Description="LOC_CIVILIZATION_DACIA_DESCRIPTION"
+         Icon="ICON_CIVILIZATION_DACIA" />
+  </Civilizations>
+
+  <CivilizationTraits>
+    <Row CivilizationType="CIVILIZATION_DACIA"
+         TraitType="TRAIT_CIVILIZATION_DACIA_ABILITY" />
+    <!-- Required system trait -->
+    <Row CivilizationType="CIVILIZATION_DACIA"
+         TraitType="TRAIT_ANTIQUITY_CIV" />
+  </CivilizationTraits>
+
+  <CivilizationDomains>
+    <Row CivilizationType="CIVILIZATION_DACIA"
+         Domain="AntiquityAgeCivilizations" />
+  </CivilizationDomains>
+</Database>
+```
+
+### Adding a unique unit with replacement
+
+```xml
+<Database>
+  <Types>
+    <Row Type="UNIT_DACIA_FALX_WARRIOR" Kind="KIND_UNIT"/>
+  </Types>
+
+  <Units>
+    <Row UnitType="UNIT_DACIA_FALX_WARRIOR"
+         Name="LOC_UNIT_DACIA_FALX_WARRIOR_NAME"
+         Description="LOC_UNIT_DACIA_FALX_WARRIOR_DESCRIPTION"
+         Domain="DOMAIN_LAND"
+         FormationClass="FORMATION_CLASS_LAND_COMBAT"
+         Cost="130"
+         BaseMoves="2"
+         Combat="40"
+         BaseSightRange="2"
+         PrereqTech="TECH_IRON_WORKING" />
+  </Units>
+
+  <!-- Replace the standard Swordsman for Dacia -->
+  <UnitReplaces>
+    <Row CivUniqueUnitType="UNIT_DACIA_FALX_WARRIOR"
+         ReplacesUnitType="UNIT_SWORDSMAN" />
+  </UnitReplaces>
+
+  <!-- Connect to civilization via trait -->
+  <Traits>
+    <Row TraitType="TRAIT_CIVILIZATION_UNIT_DACIA_FALX_WARRIOR" />
+  </Traits>
+  <Units>
+    <Row UnitType="UNIT_DACIA_FALX_WARRIOR"
+         TraitType="TRAIT_CIVILIZATION_UNIT_DACIA_FALX_WARRIOR" />
+  </Units>
+</Database>
+```
+
+### Connecting a leader to a civilization
+
+```xml
+<Database>
+  <Types>
+    <Row Type="LEADER_DECEBALUS" Kind="KIND_LEADER"/>
+  </Types>
+
+  <Leaders>
+    <Row LeaderType="LEADER_DECEBALUS"
+         Name="LOC_LEADER_DECEBALUS_NAME"
+         InheritFrom="LEADER_DEFAULT" />
+  </Leaders>
+
+  <CivilizationLeaders>
+    <Row CivilizationType="CIVILIZATION_DACIA"
+         LeaderType="LEADER_DECEBALUS" />
+  </CivilizationLeaders>
+
+  <!-- AI selection bias -->
+  <LeaderCivilizationBias>
+    <Row CivilizationDomain="AntiquityAgeCivilizations"
+         CivilizationType="CIVILIZATION_DACIA"
+         LeaderDomain="StandardLeaders"
+         LeaderType="LEADER_DECEBALUS"
+         Bias="4" />
+  </LeaderCivilizationBias>
+</Database>
+```
+
+## Icon registration
+
+Icons are registered in the `Icons` and `IconDefinitions` tables:
+
+```xml
+<Icons>
+  <Row ID="ICON_CIVILIZATION_DACIA" Context="DEFAULT" />
+</Icons>
+
+<IconDefinitions>
+  <Row ID="ICON_CIVILIZATION_DACIA"
+       Context="DEFAULT"
+       IconSize="256"
+       Path="fs://game/my-mod-id/civ_sym_dacia"
+       NeedsTinting="0" />
+</IconDefinitions>
+```
+
+## Schema file locations
+
+For the authoritative table definitions, refer to the installed game files:
+
+| Schema | Location |
+|---|---|
+| Core gameplay | `<GAME_RESOURCES>/Base/Assets/schema/gameplay/01_GameplaySchema.sql` |
+| Modding framework | `<GAME_RESOURCES>/Base/Assets/schema/modding/schema-modding-10.sql` |
+| Icons | `<GAME_RESOURCES>/Base/Assets/schema/icons/IconManager.sql` |
+| Localization | `<GAME_RESOURCES>/Base/Assets/schema/loc/schema-loc-10.sql` |
+
+<Tip>
+The SDK's constants (e.g., `UNIT`, `TERRAIN`, `YIELD`) are derived from the game's own schema files. When in doubt about a valid value, check `packages/sdk/src/constants/`.
+</Tip>

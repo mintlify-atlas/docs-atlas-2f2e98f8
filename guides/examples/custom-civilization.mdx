@@ -1,0 +1,335 @@
+---
+title: "Example: Custom Civilization"
+description: "End-to-end walkthrough creating a custom civilization (Gondor) using multiple SDK builders."
+keywords: ["custom civilization", "example", "Gondor", "CivilizationBuilder", "multiple builders", "mod structure"]
+---
+
+This example builds a complete custom civilization from scratch — **Gondor**, a fictional kingdom. It demonstrates how to combine multiple builders into a cohesive mod and explains the relationship between them.
+
+<Note>
+Gondor is used here as a teaching example because its identity (defensive military power, mountain homeland, rich heritage) maps cleanly onto Civ7 mechanics. The same pattern works for any real or fictional civilization.
+</Note>
+
+## Design plan
+
+Before writing any code, define the civilization's identity:
+
+| Component | Design |
+|---|---|
+| **Theme** | Defensive military power; long-standing legacy civilization |
+| **Age** | Antiquity |
+| **Unique ability** | +4 Combat Strength in Hills; cities on Hills get free Walls |
+| **Unique unit** | Tower Guard (replaces Swordsman; +defense, can't be flanked) |
+| **Unique building** | White Tower (replaces Library; +Science, +1 free Civic per era) |
+| **Tradition** | Steward's Law (+Culture, +Happiness while at peace) |
+
+## Full implementation
+
+<CodeGroup>
+
+```typescript src/index.ts
+import {
+    ACTION_GROUP_BUNDLE,
+    AGE,
+    CivilizationBuilder,
+    CivilizationUnlockBuilder,
+    COLLECTION,
+    CONSTRUCTIBLE_TYPE_TAG,
+    ConstructibleBuilder,
+    DISTRICT,
+    EFFECT,
+    ImportFileBuilder,
+    LeaderUnlockBuilder,
+    Mod,
+    ModifierBuilder,
+    REQUIREMENT,
+    TRAIT,
+    TAG_TRAIT,
+    TraditionBuilder,
+    UNIT,
+    UNIT_CLASS,
+    UnitBuilder,
+    YIELD,
+} from 'civ7-modding-tools';
+
+// ================================================================
+// Mod definition
+// ================================================================
+const mod = new Mod({
+    id: 'com.example.gondor',
+    version: '1.0',
+});
+
+// ================================================================
+// Assets
+// ================================================================
+const civIcon = new ImportFileBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    content: './assets/civ_sym_gondor.dds',
+    name: 'civ_sym_gondor',
+});
+
+// ================================================================
+// Civilization
+// ================================================================
+const gondor = new CivilizationBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+
+    civilization: {
+        domain: 'AntiquityAgeCivilizations',
+        civilizationType: 'CIVILIZATION_GONDOR',
+    },
+
+    civilizationTraits: [
+        TRAIT.ANTIQUITY_CIV,
+        TRAIT.ATTRIBUTE_MILITARISTIC,
+    ],
+
+    civilizationTags: [TAG_TRAIT.MILITARY],
+
+    icon: { path: `fs://game/${mod.id}/${civIcon.name}` },
+
+    localizations: [{
+        name: 'Gondor',
+        description: 'The last realm of Numenorean men, guardian of the West.',
+        fullName: 'Kingdom of Gondor',
+        adjective: 'Gondorian',
+        cityNames: [
+            'Minas Tirith', 'Osgiliath', 'Pelargir', 'Dol Amroth',
+            'Lossarnach', 'Minas Morgul', 'Cair Andros', 'Henneth Annun',
+        ],
+    }],
+});
+
+// ================================================================
+// Civilization ability modifiers
+// ================================================================
+
+// +4 Combat on Hills
+const hillsCombat = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_UNITS,
+        effect: EFFECT.UNIT_ADJUST_COMBAT_STRENGTH,
+        permanent: true,
+        requirements: [{ type: REQUIREMENT.COMBAT_IS_IN_HILLS }],
+        arguments: [{ name: 'Amount', value: 4 }],
+    },
+    localizations: [{ description: '+4 Combat Strength on Hills terrain.' }],
+});
+
+gondor.bind([hillsCombat]);
+
+// ================================================================
+// Unique Unit: Tower Guard
+// ================================================================
+const towerGuard = new UnitBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    typeTags: [UNIT_CLASS.MELEE, UNIT_CLASS.HEAVY],
+    unit: {
+        unitType: 'UNIT_GONDOR_TOWER_GUARD',
+        baseMoves: 2,
+        baseSightRange: 2,
+    },
+    unitCost: { cost: 100 },
+    unitStat: { combat: 38 },  // 2 more than base Swordsman (36)
+    unitReplace: { replacesUnitType: UNIT.SWORDSMAN },
+    visualRemap: { to: UNIT.SWORDSMAN },
+    localizations: [{
+        name: 'Tower Guard',
+        description: 'Elite guards of Gondor. Receive bonus combat strength when defending.',
+    }],
+});
+
+// Defensive bonus
+const guardDefenseBonus = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_UNITS,
+        effect: EFFECT.UNIT_ADJUST_COMBAT_STRENGTH,
+        requirements: [
+            { type: REQUIREMENT.UNIT_TAG_MATCHES,
+                arguments: [{ name: 'Tag', value: 'UNIT_GONDOR_TOWER_GUARD' }] },
+            { type: REQUIREMENT.UNIT_IS_DEFENDING },
+        ],
+        arguments: [{ name: 'Amount', value: 5 }],
+    },
+    localizations: [{ description: '+5 Combat Strength when defending (Tower Guard).' }],
+});
+
+towerGuard.bind([guardDefenseBonus]);
+gondor.bind([towerGuard]);
+
+// ================================================================
+// Unique Building: White Tower
+// Replaces Library; provides more Science
+// ================================================================
+const whiteTower = new ConstructibleBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    constructible: { constructibleType: 'BUILDING_GONDOR_WHITE_TOWER' },
+    building: {},
+    typeTags: [
+        CONSTRUCTIBLE_TYPE_TAG.AGELESS,
+        CONSTRUCTIBLE_TYPE_TAG.UNIQUE,
+    ],
+    constructibleValidDistricts: [DISTRICT.CITY_CENTER, DISTRICT.URBAN],
+    constructibleYieldChanges: [
+        { yieldType: YIELD.SCIENCE, yieldChange: 3 },
+        { yieldType: YIELD.CULTURE, yieldChange: 1 },
+    ],
+    constructibleMaintenances: [
+        { yieldType: YIELD.GOLD, amount: 2 },
+    ],
+    constructibleReplace: { replacesBuildingType: 'BUILDING_LIBRARY' },
+    localizations: [{
+        name: 'White Tower',
+        description: "Repository of Gondor's lore and strategic intelligence.",
+        tooltip: '+3 Science, +1 Culture. Replaces Library.',
+    }],
+});
+
+gondor.bind([whiteTower]);
+
+// ================================================================
+// Tradition: Steward's Law
+// ================================================================
+const stewardsLaw = new TraditionBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    tradition: { traditionType: 'TRADITION_GONDOR_STEWARDS_LAW' },
+    localizations: [{
+        name: "Steward's Law",
+        description: 'Gondor\'s tradition of ordered governance and accumulated wisdom.',
+    }],
+});
+
+// +2 Culture and +1 Happiness while at peace
+const peaceBonus = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_CITIES,
+        effect: EFFECT.CITY_ADJUST_YIELD,
+        requirements: [
+            // Invert war requirement: player is NOT at war
+            // (Use a separate check in actual game; here illustrating the pattern)
+            { type: REQUIREMENT.PLAYER_IS_AT_WAR, inverse: true },
+        ],
+        arguments: [
+            { name: 'YieldType', value: 'YIELD_CULTURE' },
+            { name: 'Amount', value: 2 },
+        ],
+    },
+    localizations: [{ description: '+2 Culture in all cities while at peace.' }],
+});
+
+stewardsLaw.bind([peaceBonus]);
+
+// ================================================================
+// Leader association
+// ================================================================
+const aragorn = new LeaderUnlockBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    leaderUnlock: {
+        leaderType: 'LEADER_ARAGORN',
+        type: 'CIVILIZATION_GONDOR',
+        ageType: AGE.ANTIQUITY,
+    },
+    leaderCivilizationBias: { bias: 10 },
+    localizations: [{
+        tooltip: '[B]Aragorn[/B] leads [B]Gondor[/B], heir of Isildur.',
+    }],
+});
+
+// ================================================================
+// Age transition
+// ================================================================
+const gondorToVenice = new CivilizationUnlockBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_EXPLORATION,
+    from: { civilizationType: 'CIVILIZATION_GONDOR', ageType: AGE.ANTIQUITY },
+    to: { civilizationType: 'CIVILIZATION_VENICE', ageType: AGE.EXPLORATION },
+});
+
+// ================================================================
+// Build
+// ================================================================
+mod.add([
+    civIcon,
+    gondor,
+    towerGuard,
+    whiteTower,
+    stewardsLaw,
+    aragorn,
+    gondorToVenice,
+]).build('./dist');
+```
+
+```bash Expected output
+dist/
+├── com.example.gondor.modinfo
+├── civilizations/
+│   └── CIVILIZATION_GONDOR/
+│       ├── current.xml
+│       └── game-effects.xml
+├── units/
+│   └── UNIT_GONDOR_TOWER_GUARD/
+│       └── current.xml
+├── constructibles/
+│   └── BUILDING_GONDOR_WHITE_TOWER/
+│       └── current.xml
+├── traditions/
+│   └── TRADITION_GONDOR_STEWARDS_LAW/
+│       └── current.xml
+├── text/
+│   └── localizations.xml
+└── imports/
+    └── civ_sym_gondor.dds
+```
+
+</CodeGroup>
+
+## How the builders relate
+
+```
+Mod
+ ├── ImportFileBuilder (civIcon)       ← standalone, no bind needed
+ ├── CivilizationBuilder (gondor)
+ │    ├── ModifierBuilder (hillsCombat)   ← bound to civilization
+ │    ├── UnitBuilder (towerGuard)        ← bound to civilization
+ │    │    └── ModifierBuilder (guardBonus) ← bound to unit
+ │    └── ConstructibleBuilder (whiteTower) ← bound to civilization
+ ├── TraditionBuilder (stewardsLaw)
+ │    └── ModifierBuilder (peaceBonus)    ← bound to tradition
+ ├── LeaderUnlockBuilder (aragorn)      ← standalone
+ └── CivilizationUnlockBuilder           ← standalone
+```
+
+Key rules:
+- Builders bound to a civilization via `.bind()` are **restricted** to that civilization
+- Builders added directly to `mod.add()` but not bound are **global** (affect all players)
+- `TraditionBuilder` and its modifiers are only active when a player has adopted that tradition
+
+## Customization checklist
+
+When adapting this template for your own civilization:
+
+<AccordionGroup>
+  <Accordion title="Naming conventions">
+    Replace every instance of `GONDOR` with your civilization's name. Use consistent `SCREAMING_SNAKE_CASE` for type identifiers and `Title Case` for localization strings.
+  </Accordion>
+  <Accordion title="Domain and age">
+    Change `AntiquityAgeCivilizations` to `ExplorationAgeCivilizations` or `ModernAgeCivilizations` if your civilization belongs to a different era. Update `ACTION_GROUP_BUNDLE` and `TRAIT.ANTIQUITY_CIV` accordingly.
+  </Accordion>
+  <Accordion title="Unit class matching">
+    Ensure your unit's `typeTags` include the right class constants for the abilities you want. `UNIT_CLASS.MELEE` + `UNIT_CLASS.HEAVY` is a standard heavy infantry combination.
+  </Accordion>
+  <Accordion title="Building district placement">
+    `DISTRICT.CITY_CENTER` and `DISTRICT.URBAN` are the most flexible. For more specialized buildings, use `DISTRICT.HOLY_SITE`, `DISTRICT.ENCAMPMENT`, or `DISTRICT.HARBOR`.
+  </Accordion>
+  <Accordion title="Age transition target">
+    The transition civilization (`gondorToVenice`) must be an existing civilization in the game. Check the game's database for valid `CIVILIZATION_*` values for the target age.
+  </Accordion>
+</AccordionGroup>
+
+## Related guides
+
+- [Creating Civilizations](/guides/typescript/creating-civilizations) (reference)
+- [Creating Units](/guides/typescript/creating-units)
+- [Creating Buildings](/guides/typescript/creating-buildings)
+- [Traditions](/guides/typescript/traditions)
+- [Example: Dacia Civilization](/guides/examples/dacia-civilization)

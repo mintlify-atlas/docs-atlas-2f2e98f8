@@ -1,0 +1,128 @@
+---
+title: "XmlFile"
+description: "Wrap a DatabaseNode XML element in a file with action group bindings."
+---
+
+`XmlFile` is the low-level file abstraction that pairs serialized XML content with the action groups that control when the game loads it. All builders produce `XmlFile` instances internally.
+
+## Import
+
+```typescript
+import { XmlFile, ACTION_GROUP, ACTION_GROUP_ACTION } from '@mateicanavra/civ7-sdk';
+```
+
+## Constructor
+
+```typescript
+new XmlFile(options?: Partial<XmlFileOptions>)
+```
+
+<ParamField body="path" type="string" default="'/'">
+  Directory path within the mod output folder. Use a leading slash and trailing slash.
+
+  ```typescript
+  path: '/units/unit-custom-scout/'
+  ```
+</ParamField>
+
+<ParamField body="name" type="string" default="'file.txt'">
+  File name including extension.
+
+  ```typescript
+  name: 'current.xml'
+  ```
+</ParamField>
+
+<ParamField body="content" type="XmlElement | XmlElement[] | null | undefined">
+  The XML content to write. Pass the return value of `DatabaseNode.toXmlElement()` or `GameEffectNode.toXmlElement()`. When `null` or `undefined`, the file is considered empty and is skipped.
+</ParamField>
+
+<ParamField body="actionGroups" type="ActionGroupNode[]" default="[]">
+  Action group nodes that determine when the game loads this file. Use `ACTION_GROUP.*` constants.
+
+  Common values:
+  - `ACTION_GROUP.SHELL` — loads in shell/menu scope
+  - `ACTION_GROUP.GAME` — loads always in game scope
+  - `ACTION_GROUP.AGE_ANTIQUITY_CURRENT` — loads only during Antiquity age
+  - `ACTION_GROUP.AGE_EXPLORATION_CURRENT` — loads only during Exploration age
+  - `ACTION_GROUP.AGE_MODERN_CURRENT` — loads only during Modern age
+</ParamField>
+
+<ParamField body="actionGroupActions" type="TObjectValues<typeof ACTION_GROUP_ACTION>[]" default="[ACTION_GROUP_ACTION.UPDATE_DATABASE]">
+  The action type(s) within each action group. Use `ACTION_GROUP_ACTION.*` constants.
+
+  | Constant | Value | Use case |
+  |---|---|---|
+  | `ACTION_GROUP_ACTION.UPDATE_DATABASE` | `'UpdateDatabase'` | All entity XML |
+  | `ACTION_GROUP_ACTION.UPDATE_TEXT` | `'UpdateText'` | Localization files |
+  | `ACTION_GROUP_ACTION.UPDATE_ICONS` | `'UpdateIcons'` | Icon definition files |
+  | `ACTION_GROUP_ACTION.UPDATE_VISUAL_REMAPS` | `'UpdateVisualRemaps'` | Visual remap files |
+  | `ACTION_GROUP_ACTION.IMPORT_FILES` | `'ImportFiles'` | Asset imports |
+</ParamField>
+
+## `write()` method
+
+```typescript
+write(dist: string): void
+```
+
+Writes the file to `<dist><path><name>`. Called automatically by `Mod.build()`.
+
+## `isEmpty` property
+
+Returns `true` when `content` is `null` or `undefined`. Empty files are skipped during `Mod.build()`.
+
+## `modInfoPath` property
+
+Returns the file's path as it appears in the `.modinfo` manifest — the path without a leading slash.
+
+## Example
+
+```typescript
+import {
+  Mod,
+  XmlFile,
+  DatabaseNode,
+  TypeNode,
+  UnitNode,
+  KIND,
+  ACTION_GROUP,
+  ACTION_GROUP_ACTION,
+} from '@mateicanavra/civ7-sdk';
+
+const mod = new Mod({ id: 'manual-mod', version: '1' });
+
+const database = new DatabaseNode({
+  types: [new TypeNode({ type: 'UNIT_CUSTOM', kind: KIND.UNIT })],
+  units: [new UnitNode({ unitType: 'UNIT_CUSTOM', baseMoves: 2, baseSightRange: 2 })],
+});
+
+const unitFile = new XmlFile({
+  path: '/units/unit-custom/',
+  name: 'current.xml',
+  content: database.toXmlElement(),
+  actionGroups: [ACTION_GROUP.AGE_ANTIQUITY_CURRENT],
+  actionGroupActions: [ACTION_GROUP_ACTION.UPDATE_DATABASE],
+});
+
+mod.addFiles([unitFile]).build('./manual-mod');
+```
+
+## Multiple action groups
+
+A file can be registered in multiple action groups by passing more than one:
+
+```typescript
+const localizationFile = new XmlFile({
+  path: '/units/unit-custom/',
+  name: 'localization.xml',
+  content: localizationDatabase.toXmlElement(),
+  // Load in both shell and game scopes
+  actionGroups: [ACTION_GROUP.SHELL, ACTION_GROUP.GAME],
+  actionGroupActions: [ACTION_GROUP_ACTION.UPDATE_TEXT],
+});
+```
+
+<Note>
+  The game requires localization files to be loaded in shell scope so names appear on the main menu. Always include `ACTION_GROUP.SHELL` for localization files.
+</Note>

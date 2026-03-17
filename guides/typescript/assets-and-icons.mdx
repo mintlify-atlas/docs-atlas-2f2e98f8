@@ -1,0 +1,280 @@
+---
+title: "Assets and Icons"
+description: "Import custom icons and assets into your mod using ImportFileBuilder."
+keywords: ["assets", "icons", "DDS", "ImportFileBuilder", "localization", "file paths"]
+---
+
+Custom icons and assets make your mod look polished and professional. This guide covers importing icon files, referencing them in game entities, and structuring your asset directory.
+
+## How assets work in Civ7 mods
+
+The game uses a virtual file system (VFS). When you import a file, it gets registered in the VFS under a path like `fs://game/your-mod-id/asset-name`. Other game systems reference this path to load the asset.
+
+`ImportFileBuilder` handles both the import registration in the `.modinfo` and the correct path construction.
+
+## Importing a single icon
+
+```typescript
+import {
+    ACTION_GROUP_BUNDLE,
+    ImportFileBuilder,
+    Mod,
+} from 'civ7-modding-tools';
+
+const mod = new Mod({
+    id: 'my-assets-mod',
+    version: '1.0',
+});
+
+const civIcon = new ImportFileBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    content: './assets/civ-icon.dds',   // Path to the source file
+    name: 'civ_sym_dacia',              // Name in the VFS namespace
+});
+
+mod.add([civIcon]).build('./dist');
+```
+
+## Referencing imported assets
+
+After importing, reference the asset with the VFS path pattern:
+
+```typescript
+const path = `fs://game/${mod.id}/${civIcon.name}`;
+// Result: "fs://game/my-assets-mod/civ_sym_dacia"
+```
+
+Use this path when configuring builder icons:
+
+```typescript
+import { CivilizationBuilder, UnitBuilder } from 'civ7-modding-tools';
+
+const civIcon = new ImportFileBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    content: './assets/dacia-icon.dds',
+    name: 'civ_sym_dacia',
+});
+
+const unitIcon = new ImportFileBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    content: './assets/falx-warrior-icon.dds',
+    name: 'unit_icon_falx_warrior',
+});
+
+const dacia = new CivilizationBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    civilization: {
+        civilizationType: 'CIVILIZATION_DACIA',
+        domain: 'AntiquityAgeCivilizations',
+    },
+    icon: {
+        path: `fs://game/${mod.id}/${civIcon.name}`,
+    },
+    // ...
+});
+
+const falxWarrior = new UnitBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    // ...
+    icon: `fs://game/${mod.id}/${unitIcon.name}`,
+});
+
+mod.add([civIcon, unitIcon, dacia, falxWarrior]);
+```
+
+## Common asset types
+
+| Asset | Naming convention | Typical size |
+|---|---|---|
+| Civilization symbol | `civ_sym_name` | 256×256 px |
+| Leader portrait | `leader_name` | 512×768 px |
+| Unit icon | `unit_icon_name` | 128×128 px |
+| Building icon | `building_icon_name` | 128×128 px |
+| Tradition icon | `tradition_icon_name` | 128×128 px |
+
+## File format: DDS vs. PNG
+
+<Tabs>
+  <Tab title="DDS (recommended)">
+    DDS (DirectDraw Surface) is the native format for Civ7 assets. It supports hardware-accelerated decompression and multiple mip levels.
+
+    Use DXT1 compression for icons without transparency, or DXT5 for icons with an alpha channel.
+
+    Tools for converting to DDS:
+    - NVIDIA Texture Tools
+    - Intel Texture Works (Photoshop plugin)
+    - `texconv` command-line tool (Microsoft)
+  </Tab>
+  <Tab title="PNG (development only)">
+    PNG files can be used during development for rapid iteration. The game will load them, but:
+    - Performance is worse than DDS
+    - Color profiles may differ
+    - Not recommended for released mods
+
+    Convert to DDS before publishing.
+  </Tab>
+</Tabs>
+
+## Recommended directory structure
+
+```bash
+my-mod/
+├── src/
+│   └── index.ts        # Main mod file
+├── assets/
+│   ├── civ/
+│   │   ├── civ_sym_dacia.dds
+│   │   └── civ_sym_dacia_portrait.dds
+│   ├── leaders/
+│   │   └── leader_decebalus.dds
+│   └── units/
+│       └── unit_icon_falx_warrior.dds
+└── dist/           # Generated mod output
+```
+
+## Age-specific icons
+
+For mods spanning multiple ages, import separate icons per age:
+
+```typescript
+const antiquityIcon = new ImportFileBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    content: './assets/units/unit_scout_antiquity.dds',
+    name: 'unit_icon_scout_antiquity',
+});
+
+const explorationIcon = new ImportFileBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_EXPLORATION,
+    content: './assets/units/unit_scout_exploration.dds',
+    name: 'unit_icon_scout_exploration',
+});
+```
+
+## Localization for names and descriptions
+
+Localization is handled through the `localizations` array on each builder, not through separate asset files. The SDK generates the correct `LocalizedText` table entries automatically:
+
+```typescript
+const dacia = new CivilizationBuilder({
+    // ...
+    localizations: [{
+        name: 'Dacia',
+        description: 'Ancient kingdom in the Carpathians.',
+        fullName: 'Kingdom of Dacia',
+        adjective: 'Dacian',
+        cityNames: ['Sarmizegetusa', 'Apulum', 'Napoca'],
+    }],
+});
+```
+
+For additional languages, pass multiple localization entries with a `language` field:
+
+```typescript
+localizations: [
+    {
+        language: 'en_US',
+        name: 'Dacia',
+        description: 'Ancient kingdom in the Carpathians.',
+    },
+    {
+        language: 'fr_FR',
+        name: 'Dacie',
+        description: 'Ancien royaume des Carpates.',
+    },
+],
+```
+
+## Complete example
+
+```typescript
+import {
+    ACTION_GROUP_BUNDLE,
+    CivilizationBuilder,
+    ImportFileBuilder,
+    LeaderUnlockBuilder,
+    Mod,
+    UnitBuilder,
+    UNIT_CLASS,
+    AGE,
+    TRAIT,
+} from 'civ7-modding-tools';
+
+const mod = new Mod({ id: 'dacia-full-mod', version: '1.0' });
+
+// --- Assets ---
+const civIcon = new ImportFileBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    content: './assets/civ/civ_sym_dacia.dds',
+    name: 'civ_sym_dacia',
+});
+
+const unitIcon = new ImportFileBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    content: './assets/units/unit_icon_falx_warrior.dds',
+    name: 'unit_icon_falx_warrior',
+});
+
+// --- Civilization ---
+const dacia = new CivilizationBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    civilization: {
+        domain: 'AntiquityAgeCivilizations',
+        civilizationType: 'CIVILIZATION_DACIA',
+    },
+    civilizationTraits: [TRAIT.ANTIQUITY_CIV],
+    icon: { path: `fs://game/${mod.id}/${civIcon.name}` },
+    localizations: [{
+        name: 'Dacia',
+        description: 'Fierce warriors of the Carpathian mountains.',
+        fullName: 'Kingdom of Dacia',
+        adjective: 'Dacian',
+        cityNames: ['Sarmizegetusa', 'Apulum', 'Napoca', 'Sucidava'],
+    }],
+});
+
+// --- Unit ---
+const falxWarrior = new UnitBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    typeTags: [UNIT_CLASS.MELEE, UNIT_CLASS.HEAVY],
+    unit: { unitType: 'UNIT_DACIA_FALX_WARRIOR', baseMoves: 2, baseSightRange: 2 },
+    unitCost: { cost: 90 },
+    unitStat: { combat: 35 },
+    icon: `fs://game/${mod.id}/${unitIcon.name}`,
+    localizations: [{ name: 'Falx Warrior', description: 'Dacian warrior wielding the curved falx blade.' }],
+});
+
+// --- Leader ---
+const decebalus = new LeaderUnlockBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    leaderUnlock: {
+        leaderType: 'LEADER_DECEBALUS',
+        type: 'CIVILIZATION_DACIA',
+        ageType: AGE.ANTIQUITY,
+    },
+    localizations: [{ tooltip: '[B]Decebalus[/B] leads [B]Dacia[/B].' }],
+});
+
+dacia.bind([falxWarrior]);
+
+mod.add([civIcon, unitIcon, dacia, falxWarrior, decebalus]).build('./dist');
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Icon shows as broken or missing in-game">
+    Verify the file path in `content` is correct relative to your project root. Check that the DDS file uses a supported compression format (DXT1 or DXT5).
+  </Accordion>
+  <Accordion title="Wrong icon appears">
+    Icon names are global within your mod namespace. Ensure `name` is unique within the mod and does not conflict with base game icon names.
+  </Accordion>
+  <Accordion title="Asset loads in Antiquity but not Exploration">
+    If the asset is used in both ages, import it twice with the appropriate `actionGroupBundle` for each, or use `ACTION_GROUP_BUNDLE.ALWAYS` if supported.
+  </Accordion>
+</AccordionGroup>
+
+## Related guides
+
+- [Creating Civilizations](/guides/typescript/creating-civilizations)
+- [Creating Units](/guides/typescript/creating-units)
+- [Creating Buildings](/guides/typescript/creating-buildings)

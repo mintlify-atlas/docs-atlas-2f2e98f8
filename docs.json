@@ -1,122 +1,127 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Civ7 Modding Tools",
+  "theme": "maple",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#848c8e",
+    "light": "#11161e",
+    "dark": "#cfd0d2"
   },
-  "favicon": "/favicon.svg",
+  "favicon": "https://media.brand.dev/2b01fe20-c04b-4a1d-a2f9-1d2789c50a7a.jpg",
+  "logo": {
+    "light": "https://media.brand.dev/5ffd6ce4-2434-4b4b-920a-f8cacac8b48b.svg",
+    "dark": "https://media.brand.dev/5ffd6ce4-2434-4b4b-920a-f8cacac8b48b.svg"
+  },
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/mateicanavra/civ7-modding-tools"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/mateicanavra/civ7-modding-tools"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Getting Started",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Overview",
+            "pages": ["introduction", "quickstart"]
+          },
+          {
+            "group": "Installation",
+            "pages": ["installation/prerequisites", "installation/setup", "installation/configuration"]
+          }
+        ]
+      },
+      {
+        "tab": "SDK",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": ["sdk/overview", "sdk/quickstart"]
+          },
+          {
+            "group": "Builders",
             "pages": [
-              "index",
-              "quickstart",
-              "development"
+              "sdk/builders/mod",
+              "sdk/builders/unit",
+              "sdk/builders/civilization",
+              "sdk/builders/constructible",
+              "sdk/builders/progression-tree",
+              "sdk/builders/modifier",
+              "sdk/builders/tradition",
+              "sdk/builders/unique-quarter"
             ]
           },
           {
-            "group": "Customization",
-            "pages": [
-              "essentials/settings",
-              "essentials/navigation"
-            ]
+            "group": "Low-Level API",
+            "pages": ["sdk/nodes/overview", "sdk/files/xml-file", "sdk/files/import-file"]
           },
           {
-            "group": "Writing content",
-            "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
-            ]
+            "group": "Constants & Types",
+            "pages": ["sdk/constants/overview", "sdk/types/overview"]
+          }
+        ]
+      },
+      {
+        "tab": "CLI",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": ["cli/overview", "cli/configuration"]
           },
           {
-            "group": "AI tools",
+            "group": "Commands",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "cli/commands/data-crawl",
+              "cli/commands/data-explore",
+              "cli/commands/data-render",
+              "cli/commands/data-slice",
+              "cli/commands/data-zip",
+              "cli/commands/data-unzip",
+              "cli/commands/mod-git",
+              "cli/commands/mod-manage"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "Guides",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Modding Fundamentals",
             "pages": [
-              "api-reference/introduction"
+              "guides/modding-architecture",
+              "guides/modinfo-files",
+              "guides/database-modding",
+              "guides/modifier-system"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "TypeScript How-To",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "guides/typescript/creating-units",
+              "guides/typescript/creating-civilizations",
+              "guides/typescript/creating-buildings",
+              "guides/typescript/leaders-and-ages",
+              "guides/typescript/unique-quarters",
+              "guides/typescript/traditions",
+              "guides/typescript/progression-trees",
+              "guides/typescript/modifiers-and-effects",
+              "guides/typescript/assets-and-icons"
             ]
+          },
+          {
+            "group": "Examples",
+            "pages": ["guides/examples/dacia-civilization", "guides/examples/custom-unit", "guides/examples/custom-civilization"]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

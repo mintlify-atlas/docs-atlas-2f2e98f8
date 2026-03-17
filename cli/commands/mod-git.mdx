@@ -1,0 +1,365 @@
+---
+title: "mod git"
+description: "Manage mod repositories via git subtree: setup, import, pull, push, status, list, clear, remove, and update."
+---
+
+## Overview
+
+The `mod git` command group manages Civilization VII mod repositories using **git subtree**. Each mod lives under `mods/<slug>` in your monorepo and is connected to an external git repository. Configuration (remote URL, branch) is stored in your git config after the initial setup.
+
+Commands that need `repoUrl` or `slug` will prompt you interactively if they are omitted and a TTY is available.
+
+<Note>
+  All `mod git` subcommands have `link:*` aliases for convenience. For example, `civ7 mod git setup` is also available as `civ7 link:setup`.
+</Note>
+
+---
+
+## mod git setup
+
+```bash
+civ7 mod git setup <slug>
+```
+
+Configures the remote and imports the repository into `mods/<slug>` in a single step. This is the recommended way to bring in a new mod from an external repository.
+
+### Arguments
+
+<ParamField path="slug" type="string" required>
+  The mod slug. The repository will be imported under `mods/<slug>`.
+</ParamField>
+
+### Flags
+
+<ParamField query="-u, --repoUrl" type="string">
+  Git repository URL. Required when not already stored in config. Prompted interactively in a TTY if omitted.
+</ParamField>
+
+<ParamField query="-b, --branch" type="string">
+  Branch to track. Defaults to the repository's default branch.
+</ParamField>
+
+<ParamField query="-S, --squash" type="boolean" default="false">
+  Squash history when importing the subtree.
+</ParamField>
+
+<ParamField query="-y, --yes" type="boolean" default="false">
+  Assume yes to safety prompts (allow dirty working tree).
+</ParamField>
+
+<ParamField query="-U, --autoUnshallow" type="boolean">
+  Automatically unshallow the repo if it is a shallow clone.
+</ParamField>
+
+<ParamField query="--overwrite" type="boolean" default="false">
+  Overwrite the existing subtree directory if it is non-empty.
+</ParamField>
+
+<ParamField query="-v, --verbose" type="boolean" default="false">
+  Show the underlying git commands being run.
+</ParamField>
+
+### Examples
+
+```bash
+civ7 mod git setup swooper-maps --repoUrl https://github.com/example/swooper-maps.git
+civ7 mod git setup swooper-maps -u https://github.com/example/swooper-maps.git --squash
+```
+
+---
+
+## mod git import
+
+```bash
+civ7 mod git import <slug>
+```
+
+Preserves history by adding the remote and importing the repository as a subtree under `mods/<slug>`. Similar to `setup`, but without the combined configure-and-import shorthand.
+
+### Arguments
+
+<ParamField path="slug" type="string" required>
+  The mod slug.
+</ParamField>
+
+### Flags
+
+<ParamField query="-u, --repoUrl" type="string">
+  Git repository URL.
+</ParamField>
+
+<ParamField query="-b, --branch" type="string">
+  Branch to track.
+</ParamField>
+
+<ParamField query="-S, --squash" type="boolean" default="false">
+  Squash history when importing.
+</ParamField>
+
+<ParamField query="-y, --yes" type="boolean" default="false">
+  Assume yes to safety prompts.
+</ParamField>
+
+<ParamField query="-U, --autoUnshallow" type="boolean">
+  Automatically unshallow the repo if needed.
+</ParamField>
+
+<ParamField query="-v, --verbose" type="boolean" default="false">
+  Show underlying git commands.
+</ParamField>
+
+---
+
+## mod git pull
+
+```bash
+civ7 mod git pull <slug>
+```
+
+Fetches and merges updates from the configured remote repository into the local `mods/<slug>` subtree.
+
+### Arguments
+
+<ParamField path="slug" type="string" required>
+  The mod slug.
+</ParamField>
+
+### Flags
+
+<ParamField query="-b, --branch" type="string">
+  Branch to pull from. Defaults to the stored branch from config.
+</ParamField>
+
+<ParamField query="-S, --squash" type="boolean" default="false">
+  Squash history when pulling.
+</ParamField>
+
+<ParamField query="-y, --yes" type="boolean" default="false">
+  Assume yes to safety prompts.
+</ParamField>
+
+<ParamField query="-U, --autoUnshallow" type="boolean">
+  Automatically unshallow the repo if needed.
+</ParamField>
+
+<ParamField query="-v, --verbose" type="boolean" default="false">
+  Show underlying git commands.
+</ParamField>
+
+### Example
+
+```bash
+civ7 mod git pull swooper-maps
+```
+
+---
+
+## mod git push
+
+```bash
+civ7 mod git push <slug>
+```
+
+Pushes local changes in `mods/<slug>` back to its configured remote repository.
+
+### Arguments
+
+<ParamField path="slug" type="string" required>
+  The mod slug.
+</ParamField>
+
+### Flags
+
+<ParamField query="-b, --branch" type="string">
+  Branch to push to. Defaults to the stored branch from config.
+</ParamField>
+
+<ParamField query="-y, --yes" type="boolean" default="false">
+  Assume yes to safety prompts.
+</ParamField>
+
+<ParamField query="-U, --autoUnshallow" type="boolean">
+  Automatically unshallow the repo if needed.
+</ParamField>
+
+<ParamField query="-f, --autoFastForwardTrunk" type="boolean" default="false">
+  After pushing, attempt to fast-forward the remote trunk branch.
+</ParamField>
+
+<ParamField query="-t, --trunk" type="string">
+  Override the trunk branch name used by `--autoFastForwardTrunk`.
+</ParamField>
+
+<ParamField query="-v, --verbose" type="boolean" default="false">
+  Show underlying git commands.
+</ParamField>
+
+### Example
+
+```bash
+civ7 mod git push swooper-maps
+```
+
+---
+
+## mod git status
+
+```bash
+civ7 mod git status <slug>
+```
+
+Displays repository and remote information for `mods/<slug>`. Accepts `--json` for machine-readable output.
+
+### Arguments
+
+<ParamField path="slug" type="string" required>
+  The mod slug.
+</ParamField>
+
+### Flags
+
+<ParamField query="--json" type="boolean" default="false">
+  Output status as JSON. Returns `repoRoot`, `modsPrefix`, `remoteName`, and the stored remote config.
+</ParamField>
+
+<ParamField query="-v, --verbose" type="boolean" default="false">
+  Show underlying git commands.
+</ParamField>
+
+### Example
+
+```bash
+civ7 mod git status swooper-maps
+civ7 mod git status swooper-maps --json
+```
+
+---
+
+## mod git list
+
+```bash
+civ7 mod git list
+```
+
+Lists all stored mod subtree configurations (slug, remote URL, branch). Accepts `--json` for machine-readable output.
+
+### Flags
+
+<ParamField query="--json" type="boolean" default="false">
+  Output as JSON array.
+</ParamField>
+
+<ParamField query="-v, --verbose" type="boolean" default="false">
+  Show underlying git commands.
+</ParamField>
+
+### Example
+
+```bash
+civ7 mod git list
+civ7 mod git list --json
+```
+
+---
+
+## mod git update
+
+```bash
+civ7 mod git update <slug>
+```
+
+Creates or updates the git remote configuration stored for a mod. Use this to change the `repoUrl` or branch associated with an existing `mods/<slug>` entry without re-importing.
+
+### Arguments
+
+<ParamField path="slug" type="string" required>
+  The mod slug.
+</ParamField>
+
+### Flags
+
+<ParamField query="-u, --repoUrl" type="string">
+  New git repository URL.
+</ParamField>
+
+<ParamField query="-b, --branch" type="string">
+  New branch to track.
+</ParamField>
+
+<ParamField query="-v, --verbose" type="boolean" default="false">
+  Show underlying git commands.
+</ParamField>
+
+### Example
+
+```bash
+civ7 mod git update swooper-maps --repoUrl https://github.com/new-org/swooper-maps.git
+```
+
+---
+
+## mod git remove
+
+```bash
+civ7 mod git remove [slug]
+```
+
+Removes the stored configuration for a single mod. Pass `--deleteLocal` to also delete the `mods/<slug>` directory from disk.
+
+### Arguments
+
+<ParamField path="slug" type="string">
+  The mod slug to remove. Either `slug` or `--repoUrl` must be provided.
+</ParamField>
+
+### Flags
+
+<ParamField query="--repoUrl" type="string">
+  Repository URL to match instead of slug.
+</ParamField>
+
+<ParamField query="--deleteLocal" type="boolean" default="false">
+  Also delete the local `mods/<slug>` directory from disk.
+</ParamField>
+
+<ParamField query="-v, --verbose" type="boolean" default="false">
+  Show underlying git commands.
+</ParamField>
+
+### Example
+
+```bash
+civ7 mod git remove swooper-maps
+civ7 mod git remove swooper-maps --deleteLocal
+```
+
+---
+
+## mod git clear
+
+```bash
+civ7 mod git clear
+```
+
+Deletes **all** stored mod subtree configurations at once. Pass `--deleteLocal` to also remove all imported `mods/<slug>` directories from disk.
+
+### Flags
+
+<ParamField query="--deleteLocal" type="boolean" default="false">
+  Also delete all local mod directories.
+</ParamField>
+
+<ParamField query="-v, --verbose" type="boolean" default="false">
+  Show underlying git commands.
+</ParamField>
+
+### Example
+
+```bash
+civ7 mod git clear
+civ7 mod git clear --deleteLocal
+```
+
+<Warning>
+  `clear --deleteLocal` permanently deletes all `mods/<slug>` directories. Make sure any local changes are pushed before running this command.
+</Warning>

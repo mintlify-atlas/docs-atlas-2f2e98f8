@@ -1,0 +1,85 @@
+---
+title: "data slice"
+description: "Copy the XML files listed in a manifest.txt into a destination folder, preserving directory structure."
+---
+
+## Synopsis
+
+```bash
+civ7 data slice <manifest>
+```
+
+## Description
+
+`data slice` reads a `manifest.txt` file (one absolute file path per line) and copies each listed file into a destination folder. The relative directory structure under the XML root is preserved in the destination.
+
+This is useful for extracting just the XML files that relate to a specific entity — for example, after running `civ7 data crawl` to generate a manifest, you can slice out only the relevant files for inspection or archiving.
+
+Files in the manifest that no longer exist on disk are skipped with a warning rather than failing the command.
+
+## Arguments
+
+<ParamField path="manifest" type="string" required>
+  Path to the `manifest.txt` file. This is typically the file produced by `civ7 data crawl` or `civ7 data explore`, located at `out/<seed>/manifest.txt`.
+</ParamField>
+
+## Flags
+
+<ParamField query="--config" type="string">
+  Path to a custom `civ.config.jsonc` file.
+</ParamField>
+
+<ParamField query="--profile" type="string" default="default">
+  Profile key to use from the config file. Used when resolving the XML root from config.
+</ParamField>
+
+<ParamField query="--root" type="string">
+  Override the XML root directory. Files in the manifest are resolved relative to this root when computing their destination paths.
+</ParamField>
+
+<ParamField query="--dest" type="string">
+  Override the destination directory. Defaults to a `slice/` subdirectory next to the manifest file.
+</ParamField>
+
+## How paths are resolved
+
+For each file path in the manifest:
+
+1. If the path starts with the root directory, the relative portion is used to mirror the structure inside `--dest`.
+2. If the path does not start with the root, only the filename (basename) is used.
+
+This means running `data slice` on a manifest from a crawl of `LEADER_AMANITORE` and using the same XML root will reproduce the exact subdirectory tree of contributing files.
+
+## Examples
+
+<CodeGroup>
+
+```bash Basic slice (default destination)
+civ7 data slice ./out/LEADER_AMANITORE/manifest.txt
+```
+
+```bash Custom destination
+civ7 data slice ./out/LEADER_AMANITORE/manifest.txt --dest ./out/amanitore-slice
+```
+
+```bash Override XML root
+civ7 data slice ./out/CIVILIZATION_ROME/manifest.txt \
+  --root ./resources \
+  --dest ./exports/rome-xml
+```
+
+```bash Use a named profile
+civ7 data slice ./out/CIVILIZATION_ROME/manifest.txt --profile default
+```
+
+</CodeGroup>
+
+A successful run prints a summary:
+
+```
+Slice complete. Copied 42 files to: ./out/LEADER_AMANITORE/slice
+```
+
+<Tip>
+  Run `civ7 data crawl <seed>` first to generate the `manifest.txt`, then use `data slice` to extract those files to a clean working directory.
+</Tip>

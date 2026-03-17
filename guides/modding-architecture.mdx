@@ -1,0 +1,165 @@
+---
+title: "Modding Architecture"
+description: "How Civilization VII mods are structured, how they load, and where the SDK fits in."
+keywords: ["modding", "architecture", "modinfo", "ages", "action groups", "load phases"]
+---
+
+Civilization VII is built on a **modular architecture** where even the base game is a collection of interconnected mods. Understanding this structure is the foundation for everything else.
+
+## How the game organizes content
+
+The game's content is split into *modules* — self-contained packages that each have their own `.modinfo` definition file, data files, text files, and scripts. Modules can depend on one another, and the game resolves load order from those dependencies.
+
+Three module categories matter most to modders:
+
+| Category | Examples | Purpose |
+|---|---|---|
+| **base-standard** | `base-standard` | Core game systems, schema definitions, shared rules |
+| **Age modules** | `age-antiquity`, `age-exploration`, `age-modern` | Era-specific content |
+| **DLC / community mods** | Nepal, Scythia, your mod | Civilization packs, balance changes, new content |
+
+### Module file layout
+
+```bash
+<GAME_RESOURCES>/Base/modules/module-name/
+├── module-name.modinfo   # Module definition
+├── data/                 # XML files for game entities
+│   ├── civilizations.xml
+│   ├── leaders.xml
+│   ├── units.xml
+│   └── ...
+├── definitions/          # .civdb schema files (base-standard only)
+├── text/                 # Localization files
+├── ui/                   # JavaScript UI definitions
+└── scripts/              # JavaScript gameplay logic
+```
+
+<Note>
+`base-standard` is the only module that contains `definitions/` — the `.civdb` schema files that define every database table. All other modules add *data* to those tables.
+</Note>
+
+## The Ages system
+
+Civilization VII's defining feature is its three-age structure. Every piece of content belongs to an age:
+
+- **Antiquity** — earliest period; classical civilizations
+- **Exploration** — middle period; colonial-era civilizations  
+- **Modern** — latest period; industrial-era civilizations
+
+This matters for modding because content must be loaded *at the right phase*. A unit introduced in Antiquity should not load during the Modern age — the game's ActionGroups mechanism handles this.
+
+### Age transitions
+
+When a player advances to a new age:
+1. The previous age's action groups stop loading
+2. The next age's action groups activate
+3. Traditions and "ageless" infrastructure persist across the transition
+4. `CivilizationUnlockBuilder` defines which civilization a player transitions *into*
+
+## Mod structure
+
+A community mod follows the same pattern as the base game modules:
+
+```bash
+<GAME_DATA>/Mods/your-mod-name/
+├── your-mod-name.modinfo   # Required: defines the mod
+├── civilizations/          # Civilization definitions
+├── units/                  # Unit definitions
+├── constructibles/         # Buildings and improvements
+├── traditions/             # Tradition definitions
+├── progression-trees/      # Civic / tech trees
+├── imports/                # Custom assets (icons, etc.)
+└── text/                   # Localization files
+```
+
+### What a mod can do
+
+- **Insert** new rows into game tables (new civilizations, units, buildings)
+- **Update** existing values (change unit stats, building yields)
+- **Replace** entries (override text, swap behaviors)
+- **Import** external files (custom icons, SQL scripts)
+
+## Action groups and load phases
+
+Action groups are the mechanism that controls *when* a file loads. Each group has a **scope** and optional **criteria** that must be met for the group to execute.
+
+```xml
+<ActionGroups>
+  <ActionGroup id="antiquity-content" scope="game" criteria="age-antiquity-current">
+    <Actions>
+      <UpdateDatabase>
+        <Item>data/my-unit.xml</Item>
+      </UpdateDatabase>
+    </Actions>
+  </ActionGroup>
+  <ActionGroup id="always-content" scope="game" criteria="always">
+    <Actions>
+      <UpdateDatabase>
+        <Item>text/localizations.xml</Item>
+      </UpdateDatabase>
+    </Actions>
+  </ActionGroup>
+</ActionGroups>
+```
+
+Common action group timing values:
+
+| Timing | When it loads |
+|---|---|
+| `AGE_ANTIQUITY` | Only during Antiquity age |
+| `AGE_EXPLORATION` | Only during Exploration age |
+| `AGE_MODERN` | Only during Modern age |
+| `ALWAYS` | Every game session |
+| `GAME_EFFECTS` | After core data, for modifiers |
+
+## How the SDK fits in
+
+Writing `.modinfo` files and XML by hand is tedious and error-prone. The **Civ7 Modding SDK** abstracts this:
+
+<Steps>
+  <Step title="Define builders in TypeScript">
+    Use strongly-typed builders (`UnitBuilder`, `CivilizationBuilder`, etc.) to describe your content.
+  </Step>
+  <Step title="Call mod.build()">
+    The SDK generates all XML files, assigns correct action groups, and writes the `.modinfo` automatically.
+  </Step>
+  <Step title="Install the output">
+    Copy the generated `dist/` folder to your game's Mods directory.
+  </Step>
+</Steps>
+
+The SDK covers roughly 80% of common modding use cases. For anything outside that scope — custom JavaScript UI, 3D assets, complex map scripts — you can drop down to raw XML or use `ImportFileBuilder` to include handwritten SQL/XML files.
+
+## Best practices
+
+<AccordionGroup>
+  <Accordion title="Use unique identifiers">
+    Prefix every type with your mod ID or civilization name (e.g., `UNIT_DACIA_FALX_WARRIOR`, not `UNIT_FALX_WARRIOR`). This prevents conflicts with other mods.
+  </Accordion>
+  <Accordion title="Specify dependencies explicitly">
+    Always declare `<Mod id="base-standard" />` as a dependency in your `.modinfo`. Without it the game cannot guarantee your content loads after the base schemas.
+  </Accordion>
+  <Accordion title="Avoid editing base game files">
+    Insert or update rows via your own mod files. Direct edits to game installation files break with patches and conflict with other mods.
+  </Accordion>
+  <Accordion title="Assign content to the correct age">
+    Antiquity units loaded with `ALWAYS` will appear in Modern age games. Use age-specific action groups to scope content correctly.
+  </Accordion>
+</AccordionGroup>
+
+## Further reading
+
+<CardGroup cols={2}>
+  <Card title=".modinfo Files" icon="file-code" href="/guides/modinfo-files">
+    Deep dive into .modinfo structure, action groups, and file actions.
+  </Card>
+  <Card title="Database Modding" icon="database" href="/guides/database-modding">
+    How Civ7's XML database works and key table relationships.
+  </Card>
+  <Card title="Modifier System" icon="zap" href="/guides/modifier-system">
+    How modifiers implement gameplay effects for traits and abilities.
+  </Card>
+  <Card title="Creating Civilizations" icon="globe" href="/guides/typescript/creating-civilizations">
+    Step-by-step guide to building a full civilization with the SDK.
+  </Card>
+</CardGroup>

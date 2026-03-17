@@ -1,0 +1,196 @@
+---
+title: "ProgressionTreeBuilder"
+description: "Build civic and tech trees and bind them to civilizations."
+---
+
+`ProgressionTreeBuilder` creates progression trees (civic or tech) that can be revealed and researched by specific civilizations. Use `ProgressionTreeNodeBuilder` to define the individual nodes within the tree.
+
+## Import
+
+```typescript
+import {
+  ProgressionTreeBuilder,
+  ProgressionTreeNodeBuilder,
+  ACTION_GROUP_BUNDLE,
+  AGE,
+  COLLECTION,
+  EFFECT,
+  ADVISORY,
+} from '@mateicanavra/civ7-sdk';
+```
+
+## ProgressionTreeBuilder
+
+### Constructor
+
+```typescript
+new ProgressionTreeBuilder(options?: Partial<ProgressionTreeBuilderOptions>)
+```
+
+<ParamField body="actionGroupBundle" type="ActionGroupBundle" required>
+  Which age this tree is active in.
+</ParamField>
+
+<ParamField body="progressionTree" type="TPartialRequired<TProgressionTreeNode, 'progressionTreeType' | 'ageType'>" required>
+  Core progression tree row. Both `progressionTreeType` and `ageType` are required.
+
+  <Expandable title="progressionTree fields">
+    <ParamField body="progressionTreeType" type="string" required>
+      Primary key — e.g. `'TREE_CIVICS_GONDOR'`.
+    </ParamField>
+    <ParamField body="ageType" type="TObjectValues<typeof AGE>" required>
+      Age constant: `AGE.ANTIQUITY`, `AGE.EXPLORATION`, or `AGE.MODERN`.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="progressionTreePrereqs" type="TProgressionTreePrereqNode[]" default="[]">
+  Prerequisite relationships between tree nodes. Defines the tree's research order.
+
+  ```typescript
+  progressionTreePrereqs: [{
+    node: 'NODE_CIVICS_GONDOR2',
+    prereqNode: 'NODE_CIVICS_GONDOR1',
+  }]
+  ```
+</ParamField>
+
+<ParamField body="localizations" type="TProgressionTreeLocalization[]" default="[]">
+  Localized tree name.
+
+  ```typescript
+  localizations: [{ name: 'Gondor Civic Tree' }]
+  ```
+</ParamField>
+
+### `bind()` method
+
+Attach `ProgressionTreeNodeBuilder` instances to define the nodes of this tree.
+
+```typescript
+bind(items: ProgressionTreeNodeBuilder[]): this
+```
+
+Each bound node gets its `progressionTree` set automatically.
+
+## ProgressionTreeNodeBuilder
+
+Defines a single researchable node in the tree.
+
+```typescript
+new ProgressionTreeNodeBuilder(options?: Partial<ProgressionTreeNodeBuilderOptions>)
+```
+
+<ParamField body="progressionTreeNode" type="TPartialRequired<TProgressionTreeNodeNode, 'progressionTreeNodeType'>" required>
+  Core node row. `progressionTreeNodeType` is required.
+
+  ```typescript
+  progressionTreeNode: {
+    progressionTreeNodeType: 'NODE_CIVICS_GONDOR1',
+  }
+  ```
+</ParamField>
+
+<ParamField body="progressionTreeAdvisories" type="TObjectValues<typeof ADVISORY>[]" default="[]">
+  Advisor categories this node contributes to.
+
+  ```typescript
+  progressionTreeAdvisories: [ADVISORY.CLASS_FOOD]
+  ```
+</ParamField>
+
+<ParamField body="localizations" type="TProgressionTreeLocalization[]" default="[]">
+  Localized node name.
+</ParamField>
+
+### `bind()` on ProgressionTreeNodeBuilder
+
+Attach `ModifierBuilder` or `TraditionBuilder` instances to a node to define what it unlocks.
+
+```typescript
+bind(items: (ModifierBuilder | TraditionBuilder)[]): this
+```
+
+## Generated files
+
+Files are written under `/progression-trees/<kebab-case-type>/`:
+
+| File | Content | Action group |
+|---|---|---|
+| `current.xml` | Types, ProgressionTrees, ProgressionTreeNodes, Unlocks | Age current |
+| `game-effects.xml` | Modifiers (from bound builders) | Age current |
+| `localization.xml` | EnglishText | Shell + always |
+
+## Full example
+
+```typescript
+import {
+  Mod,
+  CivilizationBuilder,
+  ProgressionTreeBuilder,
+  ProgressionTreeNodeBuilder,
+  ModifierBuilder,
+  TraditionBuilder,
+  ACTION_GROUP_BUNDLE,
+  AGE,
+  COLLECTION,
+  EFFECT,
+  ADVISORY,
+  TRAIT,
+  TAG_TRAIT,
+} from '@mateicanavra/civ7-sdk';
+
+const mod = new Mod({ id: 'gondor-mod', version: '1' });
+
+const civilization = new CivilizationBuilder({
+  actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+  civilization: {
+    domain: 'AntiquityAgeCivilizations',
+    civilizationType: 'CIVILIZATION_GONDOR',
+  },
+  civilizationTraits: [TRAIT.ANTIQUITY_CIV],
+  civilizationTags: [TAG_TRAIT.CULTURAL],
+  localizations: [{ name: 'Gondor' }],
+});
+
+const node1 = new ProgressionTreeNodeBuilder({
+  progressionTreeNode: { progressionTreeNodeType: 'NODE_CIVICS_GONDOR1' },
+  progressionTreeAdvisories: [ADVISORY.CLASS_FOOD],
+  localizations: [{ name: 'Stewardship' }],
+}).bind([
+  new ModifierBuilder({
+    modifier: {
+      collection: COLLECTION.OWNER,
+      effect: EFFECT.PLAYER_ADJUST_CONSTRUCTIBLE_YIELD,
+      arguments: [
+        { name: 'Tag', value: 'FOOD' },
+        { name: 'YieldType', value: 'YIELD_FOOD' },
+        { name: 'Amount', value: 10 },
+      ],
+    },
+    localizations: [{ description: '+10 Food from granaries' }],
+  }),
+]);
+
+const node2 = new ProgressionTreeNodeBuilder({
+  progressionTreeNode: { progressionTreeNodeType: 'NODE_CIVICS_GONDOR2' },
+  localizations: [{ name: 'White City' }],
+});
+
+const civicTree = new ProgressionTreeBuilder({
+  actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+  progressionTree: {
+    progressionTreeType: 'TREE_CIVICS_GONDOR',
+    ageType: AGE.ANTIQUITY,
+  },
+  progressionTreePrereqs: [{
+    node: node2.progressionTreeNode.progressionTreeNodeType,
+    prereqNode: node1.progressionTreeNode.progressionTreeNodeType,
+  }],
+  localizations: [{ name: 'Gondor Civic Tree' }],
+}).bind([node1, node2]);
+
+civilization.bind([civicTree]);
+
+mod.add([civilization, civicTree]).build('./gondor-mod');
+```

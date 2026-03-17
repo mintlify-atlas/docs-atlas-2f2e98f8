@@ -1,0 +1,258 @@
+---
+title: "Example: Custom Unit"
+description: "Complete walkthrough of creating a custom scout unit from scratch, with every parameter explained."
+keywords: ["custom unit", "UnitBuilder", "example", "UNIT_CLASS", "visual remap", "unit replacement"]
+---
+
+This example creates a custom scout unit that is slightly stronger and faster than the base game Scout. Every parameter is explained so you can adapt it to your own unit.
+
+## What we're building
+
+**Elite Scout** — a Recon-class unit for the Antiquity age that:
+- Moves 3 tiles per turn (vs. 2 for standard Scout)
+- Has 3 tiles of sight range (vs. 2)
+- Costs more to produce (60 vs. 40)
+- Replaces the standard Scout
+- Reuses the Scout's 3D model (no custom art needed)
+
+## Full code
+
+```typescript
+import {
+    ACTION_GROUP_BUNDLE,
+    Mod,
+    UNIT,
+    UNIT_CLASS,
+    UnitBuilder,
+} from 'civ7-modding-tools';
+
+const mod = new Mod({
+    id: 'my-first-mod',
+    version: '1.0.0',
+});
+
+const unit = new UnitBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    typeTags: [UNIT_CLASS.RECON, UNIT_CLASS.RECON_ABILITIES],
+    unit: {
+        unitType: 'UNIT_CUSTOM_SCOUT',
+        baseMoves: 3,
+        baseSightRange: 3,
+    },
+    unitCost: { cost: 60 },
+    unitStat: { combat: 15 },
+    unitReplace: { replacesUnitType: UNIT.SCOUT },
+    visualRemap: { to: UNIT.SCOUT },
+    localizations: [
+        { name: 'Elite Scout', description: 'A faster scout with extended visibility.' },
+    ],
+});
+
+mod.add([unit]).build('./dist');
+```
+
+## Parameter-by-parameter walkthrough
+
+### `actionGroupBundle`
+
+```typescript
+actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+```
+
+Tells the SDK which age to load this unit in. `AGE_ANTIQUITY` means the unit only exists during the Antiquity phase of the game. If you want it available across all ages, use `ACTION_GROUP_BUNDLE.ALWAYS`.
+
+### `typeTags`
+
+```typescript
+typeTags: [UNIT_CLASS.RECON, UNIT_CLASS.RECON_ABILITIES],
+```
+
+Type tags serve two purposes:
+1. **Targeting**: modifiers that say "affects RECON units" will include this unit
+2. **Abilities**: `RECON_ABILITIES` grants the standard recon skill set (reveal terrain, etc.)
+
+If you omit `RECON_ABILITIES`, the unit would be classified as recon but wouldn't have the standard scout skills.
+
+### `unit` — core stats
+
+```typescript
+unit: {
+    unitType: 'UNIT_CUSTOM_SCOUT',  // Must be globally unique
+    baseMoves: 3,                   // Movement points per turn
+    baseSightRange: 3,              // Visibility radius in tiles
+},
+```
+
+`unitType` is the internal ID. Always prefix it with something unique to your mod (`UNIT_MYMOD_`, `UNIT_DACIA_`, etc.) to avoid conflicts with other mods or the base game.
+
+### `unitCost`
+
+```typescript
+unitCost: { cost: 60 },
+```
+
+Production cost in hammers. The base Scout costs ~40. Higher cost means the unit takes longer to build, which is the right trade-off for a stronger unit.
+
+### `unitStat`
+
+```typescript
+unitStat: { combat: 15 },
+```
+
+Base combat strength. Scout-class units are not meant to fight — a low value like 15 allows them to defend themselves minimally without becoming a combat unit. Setting this to 0 would make the unit defenseless.
+
+### `unitReplace`
+
+```typescript
+unitReplace: { replacesUnitType: UNIT.SCOUT },
+```
+
+This tells the game that `UNIT_CUSTOM_SCOUT` replaces `UNIT_SCOUT` for all civilizations. When a player would normally produce a Scout, they now produce an Elite Scout instead.
+
+<Warning>
+`unitReplace` applies globally to all civilizations. If you only want your unit to replace the Scout for a specific civilization, bind the unit to that civilization using `.bind()` instead and use a trait to restrict it.
+</Warning>
+
+### `visualRemap`
+
+```typescript
+visualRemap: { to: UNIT.SCOUT },
+```
+
+The game uses the Scout's 3D model and animations for this unit. Without `visualRemap`, the game has no model to display and will either show nothing or a placeholder.
+
+### `localizations`
+
+```typescript
+localizations: [
+    { name: 'Elite Scout', description: 'A faster scout with extended visibility.' },
+],
+```
+
+The SDK generates the correct `LocalizedText` entries for all default languages (en_US). To add other languages:
+
+```typescript
+localizations: [
+    { language: 'en_US', name: 'Elite Scout', description: 'A faster scout.' },
+    { language: 'fr_FR', name: 'Éclaireur d\'élite', description: 'Un éclaireur plus rapide.' },
+],
+```
+
+## Generated output
+
+Calling `mod.add([unit]).build('./dist')` creates:
+
+<CodeGroup>
+
+```bash Output structure
+dist/
+├── my-first-mod.modinfo
+├── units/
+│   └── UNIT_CUSTOM_SCOUT/
+│       ├── current.xml       # Unit definition
+│       └── game-effects.xml  # Visual remap and type tags
+└── text/
+    └── localizations.xml     # Name and description strings
+```
+
+```xml dist/units/UNIT_CUSTOM_SCOUT/current.xml
+<?xml version="1.0" encoding="utf-8"?>
+<Database>
+  <Types>
+    <Row Type="UNIT_CUSTOM_SCOUT" Kind="KIND_UNIT"/>
+  </Types>
+  <Units>
+    <Row UnitType="UNIT_CUSTOM_SCOUT"
+         Name="LOC_UNIT_CUSTOM_SCOUT_NAME"
+         Description="LOC_UNIT_CUSTOM_SCOUT_DESCRIPTION"
+         BaseMoves="3"
+         BaseSightRange="3" />
+  </Units>
+  <Unit_Costs>
+    <Row UnitType="UNIT_CUSTOM_SCOUT" YieldType="YIELD_PRODUCTION" Cost="60"/>
+  </Unit_Costs>
+  <Unit_Stats>
+    <Row UnitType="UNIT_CUSTOM_SCOUT" Combat="15"/>
+  </Unit_Stats>
+  <UnitReplaces>
+    <Row CivUniqueUnitType="UNIT_CUSTOM_SCOUT" ReplacesUnitType="UNIT_SCOUT"/>
+  </UnitReplaces>
+</Database>
+```
+
+```xml dist/my-first-mod.modinfo
+<?xml version="1.0" encoding="utf-8"?>
+<Mod id="my-first-mod" version="1" xmlns="ModInfo">
+  <Properties>
+    <n>my-first-mod</n>
+    <Version>1.0.0</Version>
+    <AffectsSavedGames>1</AffectsSavedGames>
+  </Properties>
+  <Dependencies>
+    <Mod id="base-standard" title="LOC_MODULE_BASE_STANDARD_NAME"/>
+  </Dependencies>
+  <ActionCriteria>
+    <Criteria id="age-antiquity-current">
+      <AgeInUse>AGE_ANTIQUITY</AgeInUse>
+    </Criteria>
+    <Criteria id="always"><AlwaysMet/></Criteria>
+  </ActionCriteria>
+  <ActionGroups>
+    <ActionGroup id="age-antiquity" scope="game" criteria="age-antiquity-current">
+      <Actions>
+        <UpdateDatabase>
+          <Item>units/UNIT_CUSTOM_SCOUT/current.xml</Item>
+          <Item>units/UNIT_CUSTOM_SCOUT/game-effects.xml</Item>
+        </UpdateDatabase>
+      </Actions>
+    </ActionGroup>
+    <ActionGroup id="always" scope="game" criteria="always">
+      <Actions>
+        <UpdateDatabase>
+          <Item>text/localizations.xml</Item>
+        </UpdateDatabase>
+      </Actions>
+    </ActionGroup>
+  </ActionGroups>
+</Mod>
+```
+
+</CodeGroup>
+
+## Installing and testing
+
+<Steps>
+  <Step title="Build the mod">
+    ```bash
+    bun run build
+    # or: npx ts-node src/index.ts
+    ```
+  </Step>
+  <Step title="Copy to the game's Mods directory">
+    ```bash
+    cp -r dist/ "<GAME_DATA>/Mods/my-first-mod/"
+    ```
+    On Windows, `<GAME_DATA>` is typically `%LOCALAPPDATA%/Firaxis Games/Sid Meier's Civilization VII`.
+  </Step>
+  <Step title="Enable the mod in-game">
+    Launch Civilization VII, go to **Mods**, find "my-first-mod", and enable it.
+  </Step>
+  <Step title="Start a new game and verify">
+    Begin a new game. In the early turns, you should be able to train an **Elite Scout** instead of a standard Scout. Check that it has 3 moves and 3 sight range.
+  </Step>
+</Steps>
+
+## Variations to try
+
+| Change | How |
+|---|---|
+| Make it melee instead of recon | Replace `UNIT_CLASS.RECON` with `UNIT_CLASS.MELEE` |
+| Add a terrain combat bonus | Use `ModifierBuilder` with `REQUIREMENT.COMBAT_IS_IN_HILLS` |
+| Restrict to one civilization | Remove `unitReplace`, bind the unit to a `CivilizationBuilder` instead |
+| Add a custom icon | Add `ImportFileBuilder` and set `icon` on the unit |
+
+## Related guides
+
+- [Creating Units](/guides/typescript/creating-units) (comprehensive reference)
+- [Modifiers and Effects](/guides/typescript/modifiers-and-effects)
+- [Example: Custom Civilization](/guides/examples/custom-civilization)

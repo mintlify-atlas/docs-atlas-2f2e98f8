@@ -1,0 +1,171 @@
+---
+title: "UniqueQuarterBuilder"
+description: "Design unique city districts composed of two buildings, with optional modifier effects."
+---
+
+`UniqueQuarterBuilder` creates unique quarters — special city districts made up of two specific buildings. When the player builds both buildings in the same district, the unique quarter activates and can trigger modifiers.
+
+## Import
+
+```typescript
+import {
+  UniqueQuarterBuilder,
+  ConstructibleBuilder,
+  ModifierBuilder,
+  ACTION_GROUP_BUNDLE,
+  COLLECTION,
+  EFFECT,
+  REQUIREMENT,
+  YIELD,
+} from '@mateicanavra/civ7-sdk';
+```
+
+## Constructor
+
+```typescript
+new UniqueQuarterBuilder(options?: Partial<UniqueQuarterBuilderOptions>)
+```
+
+<ParamField body="actionGroupBundle" type="ActionGroupBundle" required>
+  Which age this unique quarter is active in.
+</ParamField>
+
+<ParamField body="uniqueQuarter" type="TPartialRequired<UniqueQuarterNode, 'uniqueQuarterType' | 'buildingType1' | 'buildingType2'>" required>
+  Core unique quarter row. All three fields are required.
+
+  <Expandable title="uniqueQuarter fields">
+    <ParamField body="uniqueQuarterType" type="string" required>
+      Primary key — e.g. `'QUARTER_GONDOR'`.
+    </ParamField>
+    <ParamField body="buildingType1" type="string" required>
+      First building that must be present. Use a `constructibleType` from a `ConstructibleBuilder`.
+    </ParamField>
+    <ParamField body="buildingType2" type="string" required>
+      Second building that must be present.
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="icon" type="TPartialRequired<TIconDefinitionNode, 'path'>">
+  Quarter icon. Defaults to `'fs://game/civ_sym_han'`.
+</ParamField>
+
+<ParamField body="localizations" type="Partial<TUniqueQuarterLocalization>[]" default="[]">
+  Localized name and description.
+
+  ```typescript
+  localizations: [{
+    name: 'Citadel Quarter',
+    description: 'A military district unique to Gondor.',
+  }]
+  ```
+</ParamField>
+
+## `bind()` method
+
+Attach modifiers and constructibles to the quarter.
+
+```typescript
+bind(items: (ModifierBuilder | ConstructibleBuilder)[]): this
+```
+
+When a `ModifierBuilder` is bound:
+- Its modifier is added to `game-effects.xml`
+- `UniqueQuarterModifier` and `GameModifier` rows are added to `always.xml` (unless `isDetached` is set)
+- Localizations are merged
+
+## Generated files
+
+Files are written under `/constructibles/<kebab-case-quarter-type>/`:
+
+| File | Content | Action group |
+|---|---|---|
+| `always.xml` | Types, UniqueQuarters, UniqueQuarterModifiers, GameModifiers | Always |
+| `game-effects.xml` | Modifiers (from bound builders) | Always |
+| `icons.xml` | IconDefinitions | Always |
+| `localization.xml` | EnglishText | Shell + always |
+
+## Example
+
+```typescript
+import {
+  Mod,
+  CivilizationBuilder,
+  ConstructibleBuilder,
+  UniqueQuarterBuilder,
+  ModifierBuilder,
+  ACTION_GROUP_BUNDLE,
+  CONSTRUCTIBLE_TYPE_TAG,
+  DISTRICT,
+  YIELD,
+  COLLECTION,
+  EFFECT,
+  REQUIREMENT,
+  TRAIT,
+  TAG_TRAIT,
+} from '@mateicanavra/civ7-sdk';
+
+const mod = new Mod({ id: 'gondor-mod', version: '1' });
+
+const barracks = new ConstructibleBuilder({
+  actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+  constructible: { constructibleType: 'BUILDING_GONDOR_BARRACKS' },
+  building: {},
+  typeTags: [CONSTRUCTIBLE_TYPE_TAG.AGELESS],
+  constructibleValidDistricts: [DISTRICT.URBAN],
+  localizations: [{ name: 'Gondor Barracks', description: 'Military training grounds.' }],
+});
+
+const armory = new ConstructibleBuilder({
+  actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+  constructible: { constructibleType: 'BUILDING_GONDOR_ARMORY' },
+  building: {},
+  typeTags: [CONSTRUCTIBLE_TYPE_TAG.AGELESS],
+  constructibleValidDistricts: [DISTRICT.URBAN],
+  localizations: [{ name: 'Gondor Armory', description: 'Equipment storage.' }],
+});
+
+const citadel = new UniqueQuarterBuilder({
+  actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+  uniqueQuarter: {
+    uniqueQuarterType: 'QUARTER_GONDOR_CITADEL',
+    buildingType1: barracks.constructible.constructibleType,
+    buildingType2: armory.constructible.constructibleType,
+  },
+  localizations: [{
+    name: 'Citadel Quarter',
+    description: 'The legendary military district of Gondor.',
+  }],
+}).bind([
+  new ModifierBuilder({
+    modifier: {
+      collection: COLLECTION.ALL_CITIES,
+      effect: EFFECT.CITY_ADJUST_YIELD,
+      permanent: true,
+      requirements: [{
+        type: REQUIREMENT.CITY_HAS_UNIQUE_QUARTER,
+        arguments: [{ name: 'UniqueQuarterType', value: 'QUARTER_GONDOR_CITADEL' }],
+      }],
+      arguments: [
+        { name: 'YieldType', value: YIELD.PRODUCTION },
+        { name: 'Amount', value: 15 },
+      ],
+    },
+  }),
+]);
+
+const civilization = new CivilizationBuilder({
+  actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+  civilization: {
+    civilizationType: 'CIVILIZATION_GONDOR',
+    domain: 'AntiquityAgeCivilizations',
+  },
+  civilizationTraits: [TRAIT.ANTIQUITY_CIV],
+  civilizationTags: [TAG_TRAIT.MILITARISTIC],
+  localizations: [{ name: 'Gondor' }],
+});
+
+civilization.bind([barracks, armory, citadel]);
+
+mod.add([civilization, barracks, armory, citadel]).build('./gondor-mod');
+```

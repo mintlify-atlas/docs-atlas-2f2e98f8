@@ -1,0 +1,106 @@
+---
+title: "mod manage"
+description: "List locally installed Civ7 mods and deploy mod builds to the game's Mods directory."
+---
+
+## Overview
+
+The `mod manage` command group provides local mod management utilities. It can locate your Civilization VII `Mods` directory automatically and list or deploy mod folders there.
+
+---
+
+## mod manage list
+
+```bash
+civ7 mod manage list
+```
+
+Finds the Civilization VII `Mods` directory on your machine and lists all subdirectories (installed mods).
+
+The directory is resolved automatically based on your OS:
+- **macOS**: `~/Library/Application Support/Civilization VII/Mods`
+- **Windows**: `%LOCALAPPDATA%\Firaxis Games\Sid Meier's Civilization VII\Mods`
+- **Linux**: `~/.local/share/Civilization VII/Mods`
+
+### Flags
+
+<ParamField query="--dir" type="string">
+  Override the Mods directory path. Use this if the CLI cannot locate the directory automatically or if you use a non-standard install location.
+</ParamField>
+
+### Example output
+
+```
+Mods directory: /Users/you/Library/Application Support/Civilization VII/Mods
+- mod-swooper-maps
+- my_custom_mod
+```
+
+### Examples
+
+<CodeGroup>
+
+```bash List mods (auto-detected directory)
+civ7 mod manage list
+```
+
+```bash Override the Mods directory
+civ7 mod manage list --dir "/custom/path/to/Mods"
+```
+
+</CodeGroup>
+
+---
+
+## mod manage deploy
+
+```bash
+civ7 mod manage deploy --input <dir> --id <mod-id>
+```
+
+Copies files from an input directory into `Mods/<mod-id>` in the Civilization VII Mods directory. This installs (or reinstalls) a mod from a local build output.
+
+After deploying, the command prints the target path as both a filesystem path and a `file://` URL for easy navigation in terminals and editors.
+
+### Flags
+
+<ParamField query="-i, --input" type="string" required>
+  Path to the input directory containing the mod files to deploy.
+</ParamField>
+
+<ParamField query="-m, --id" type="string" required>
+  Target mod ID — the directory name created under `Mods/`. This should match the mod's official identifier.
+</ParamField>
+
+<ParamField query="--dir" type="string">
+  Override the Mods directory path.
+</ParamField>
+
+### Example output
+
+```
+✅ Deployed to: /Users/you/Library/Application Support/Civilization VII/Mods/my_mod
+Open: file:///Users/you/Library/Application%20Support/Civilization%20VII/Mods/my_mod
+```
+
+### Examples
+
+<CodeGroup>
+
+```bash Deploy from a dist folder
+civ7 mod manage deploy --input ./dist --id my_mod
+```
+
+```bash Deploy a mod from the mods workspace
+civ7 mod manage deploy -i mods/mod-swooper-maps/mod -m swooper-maps
+```
+
+```bash Deploy to a custom Mods directory
+civ7 mod manage deploy -i ./dist -m my_mod --dir "/custom/path/Mods"
+```
+
+</CodeGroup>
+
+<Tip>
+  After deploying, use `civ7 mod manage list` to verify the mod appears in the Mods directory.
+</Tip>

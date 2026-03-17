@@ -1,0 +1,260 @@
+---
+title: "Unique Quarters"
+description: "Create civilization-specific unique quarters using UniqueQuarterBuilder."
+keywords: ["unique quarters", "UniqueQuarterBuilder", "districts", "buildings", "ConstructibleBuilder"]
+---
+
+Unique Quarters are special city districts formed when two specific buildings are constructed in the same city. They are a powerful way to give civilizations a distinctive urban identity and meaningful gameplay bonus.
+
+## How unique quarters work
+
+A unique quarter:
+1. Requires two specific buildings to be present in the city
+2. Activates automatically when both buildings are present
+3. Provides additional yields or effects via attached modifiers
+4. Can be civilization-specific or available to all civilizations
+
+## Step-by-step: creating a unique quarter
+
+<Steps>
+  <Step title="Create the first component building">
+    ```typescript
+    import {
+        ACTION_GROUP_BUNDLE,
+        CONSTRUCTIBLE_TYPE_TAG,
+        ConstructibleBuilder,
+        DISTRICT,
+        Mod,
+        ModifierBuilder,
+        UniqueQuarterBuilder,
+        COLLECTION,
+        EFFECT,
+        REQUIREMENT,
+        YIELD,
+    } from 'civ7-modding-tools';
+
+    const mod = new Mod({ id: 'my-quarter-mod', version: '1.0' });
+
+    const warriorHall = new ConstructibleBuilder({
+        actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+        constructible: { constructibleType: 'BUILDING_WARRIOR_HALL' },
+        building: {},
+        typeTags: [
+            CONSTRUCTIBLE_TYPE_TAG.AGELESS,
+            CONSTRUCTIBLE_TYPE_TAG.UNIQUE,
+            CONSTRUCTIBLE_TYPE_TAG.MILITARY,
+        ],
+        constructibleValidDistricts: [DISTRICT.URBAN, DISTRICT.CITY_CENTER],
+        constructibleYieldChanges: [
+            { yieldType: YIELD.PRODUCTION, yieldChange: 2 },
+        ],
+        localizations: [{
+            name: 'Warrior Hall',
+            description: 'Training hall for warriors.',
+            tooltip: '+2 Production.',
+        }],
+    });
+    ```
+  </Step>
+
+  <Step title="Create the second component building">
+    ```typescript
+    const wolfShrine = new ConstructibleBuilder({
+        actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+        constructible: { constructibleType: 'BUILDING_WOLF_SHRINE' },
+        building: {},
+        typeTags: [
+            CONSTRUCTIBLE_TYPE_TAG.AGELESS,
+            CONSTRUCTIBLE_TYPE_TAG.UNIQUE,
+            CONSTRUCTIBLE_TYPE_TAG.CULTURE,
+        ],
+        constructibleValidDistricts: [DISTRICT.URBAN, DISTRICT.CITY_CENTER],
+        constructibleYieldChanges: [
+            { yieldType: YIELD.CULTURE, yieldChange: 2 },
+        ],
+        localizations: [{
+            name: 'Wolf Shrine',
+            description: 'Sacred shrine to the wolf deity.',
+            tooltip: '+2 Culture.',
+        }],
+    });
+    ```
+  </Step>
+
+  <Step title="Define the unique quarter">
+    ```typescript
+    const dragonMountain = new UniqueQuarterBuilder({
+        actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+        uniqueQuarter: {
+            uniqueQuarterType: 'QUARTER_DRAGON_MOUNTAIN',
+            // Reference the two component buildings
+            buildingType1: warriorHall.constructible.constructibleType,
+            buildingType2: wolfShrine.constructible.constructibleType,
+        },
+        localizations: [{
+            name: 'Dragon Mountain',
+            description: 'Sacred military training complex of the Dacians.',
+        }],
+    });
+    ```
+  </Step>
+
+  <Step title="Create and bind a modifier for the quarter's effect">
+    ```typescript
+    const quarterBonus = new ModifierBuilder({
+        modifier: {
+            collection: COLLECTION.ALL_CITIES,
+            effect: EFFECT.CITY_ADJUST_YIELD,
+            permanent: true,
+            requirements: [{
+                type: REQUIREMENT.CITY_HAS_UNIQUE_QUARTER,
+                arguments: [{ name: 'UniqueQuarterType', value: 'QUARTER_DRAGON_MOUNTAIN' }],
+            }],
+            arguments: [
+                { name: 'YieldType', value: YIELD.PRODUCTION },
+                { name: 'Amount', value: 2 },
+                { name: 'Tooltip', value: 'LOC_QUARTER_DRAGON_MOUNTAIN_NAME' },
+            ],
+        },
+    });
+
+    dragonMountain.bind([quarterBonus]);
+    ```
+  </Step>
+
+  <Step title="Add everything to the mod">
+    ```typescript
+    mod.add([warriorHall, wolfShrine, dragonMountain]).build('./dist');
+    ```
+  </Step>
+</Steps>
+
+## Civilization-specific quarters
+
+To restrict a quarter to one civilization, add a civilization type requirement to the modifier:
+
+```typescript
+const dacianOnlyBonus = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_CITIES,
+        effect: EFFECT.CITY_ADJUST_YIELD,
+        permanent: true,
+        requirements: [
+            {
+                type: REQUIREMENT.CITY_HAS_UNIQUE_QUARTER,
+                arguments: [{ name: 'UniqueQuarterType', value: dragonMountain.uniqueQuarter.uniqueQuarterType }],
+            },
+            {
+                type: REQUIREMENT.PLAYER_IS_CIVILIZATION_TYPE,
+                arguments: [{ name: 'CivilizationType', value: dacia.civilization.civilizationType }],
+            },
+        ],
+        arguments: [
+            { name: 'YieldType', value: YIELD.GOLD },
+            { name: 'Amount', value: 5 },
+        ],
+    },
+    localizations: [{ description: '+5 Gold from Dragon Mountain (Dacia only).' }],
+});
+
+dragonMountain.bind([dacianOnlyBonus]);
+dacia.bind([warriorHall, wolfShrine, dragonMountain]);
+
+mod.add([dacia, warriorHall, wolfShrine, dragonMountain]);
+```
+
+## Conditional bonuses
+
+### Bonus during wartime
+
+```typescript
+const warBonus = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_CITIES,
+        effect: EFFECT.CITY_ADJUST_YIELD,
+        permanent: true,
+        requirements: [
+            {
+                type: REQUIREMENT.CITY_HAS_UNIQUE_QUARTER,
+                arguments: [{ name: 'UniqueQuarterType', value: 'QUARTER_WAR_COMPLEX' }],
+            },
+            { type: REQUIREMENT.PLAYER_IS_AT_WAR },
+        ],
+        arguments: [
+            { name: 'YieldType', value: YIELD.PRODUCTION },
+            { name: 'Amount', value: 5 },
+        ],
+    },
+    localizations: [{ description: '+5 Production during wartime.' }],
+});
+```
+
+### Bonus on hills terrain
+
+```typescript
+const hillsBonus = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_CITIES,
+        effect: EFFECT.CITY_ADJUST_YIELD,
+        permanent: true,
+        requirements: [
+            {
+                type: REQUIREMENT.CITY_HAS_UNIQUE_QUARTER,
+                arguments: [{ name: 'UniqueQuarterType', value: 'QUARTER_MOUNTAIN_COMPLEX' }],
+            },
+            {
+                type: REQUIREMENT.PLOT_IS_TERRAIN_TYPE,
+                arguments: [{ name: 'TerrainType', value: 'TERRAIN_HILLS' }],
+            },
+        ],
+        arguments: [
+            { name: 'YieldType', value: YIELD.PRODUCTION },
+            { name: 'Amount', value: 3 },
+        ],
+    },
+});
+```
+
+## Age-specific quarters
+
+```typescript
+const antiquityQuarter = new UniqueQuarterBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    uniqueQuarter: {
+        uniqueQuarterType: 'QUARTER_ANCIENT_COMPLEX',
+        buildingType1: 'BUILDING_ANCIENT_TEMPLE',
+        buildingType2: 'BUILDING_ANCIENT_MARKET',
+    },
+    localizations: [{ name: 'Ancient Complex' }],
+});
+
+const explorationQuarter = new UniqueQuarterBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_EXPLORATION,
+    uniqueQuarter: {
+        uniqueQuarterType: 'QUARTER_COLONIAL_COMPLEX',
+        buildingType1: 'BUILDING_COLONIAL_OFFICE',
+        buildingType2: 'BUILDING_COLONIAL_MARKET',
+    },
+    localizations: [{ name: 'Colonial Complex' }],
+});
+```
+
+## Design principles
+
+<AccordionGroup>
+  <Accordion title="Make both component buildings useful independently">
+    The quarter's bonus should be additive. Each building should provide meaningful value even if the player never completes the quarter, so the investment is never wasted.
+  </Accordion>
+  <Accordion title="Match thematic coherence">
+    The two buildings and the quarter's name and bonus should tell a coherent story. A Warrior Hall + Wolf Shrine combining into a Dragon Mountain complex makes thematic sense.
+  </Accordion>
+  <Accordion title="Balance the bonus relative to cost">
+    A unique quarter requires two buildings, so the combined bonus should be noticeably stronger than two separate standard buildings of similar cost.
+  </Accordion>
+</AccordionGroup>
+
+## Related guides
+
+- [Creating Buildings](/guides/typescript/creating-buildings)
+- [Creating Civilizations](/guides/typescript/creating-civilizations)
+- [Modifiers and Effects](/guides/typescript/modifiers-and-effects)

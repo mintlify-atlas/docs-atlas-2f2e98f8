@@ -1,0 +1,356 @@
+---
+title: "Example: Dacia Civilization"
+description: "A worked real-world example of creating the Dacia civilization mod, from historical reference to implementation."
+keywords: ["Dacia", "example", "civilization", "Decebalus", "Burebista", "Falx Warrior"]
+---
+
+This guide walks through the creation of a full Dacia civilization mod — a real-world example that brings together nearly every builder in the SDK. Dacia is an excellent teaching example because it has a distinctive historical identity, clear unique mechanics, and content that spans all major categories (civilization, leader, unit, building, tradition).
+
+## Historical context
+
+The Dacians were an ancient Indo-European people who inhabited the Carpathian Mountains in what is now Romania. At their peak under King Burebista (82–44 BCE), the Dacian kingdom stretched from the Black Sea to the Adriatic, rivaling Rome in influence.
+
+<AccordionGroup>
+  <Accordion title="Military identity: the Falx and the Draco">
+    Dacian warriors are most famous for the **falx** — a curved, two-handed blade that could hook over shields and cleave through Roman armor. Roman legionaries were so alarmed by the falx that they reinforced their helmets with extra iron straps during Trajan's campaigns.
+
+    The Dacians also marched under the **Dacian Draco**, a dragon-headed war standard with a hollow fabric body that howled in the wind. It served as both a religious totem and a psychological weapon.
+  </Accordion>
+  <Accordion title="Economy: gold and the Carpathian mines">
+    The Carpathian Mountains were rich in gold and silver. Dacian mining was so productive that controlling these resources was a prime motivation for Roman conquest — Trajan's armies reportedly carried off 165 tonnes of gold and 331,000 kg of silver after the final conquest in 106 CE.
+
+    This wealth financed Dacia's military and produced sophisticated coinage imitating Macedonian and Roman designs.
+  </Accordion>
+  <Accordion title="Architecture: Murus Dacicus fortifications">
+    The Dacians developed a distinctive fortification technique called **murus dacicus** — a double-face stone wall with timber framing and rubble core. This composite construction was remarkably resilient, withstanding siege techniques that would defeat simpler walls.
+
+    The six Dacian fortresses of the Orăștie Mountains (a UNESCO World Heritage site) demonstrate this technique and served as the defensive backbone of Decebalus's resistance against Rome.
+  </Accordion>
+  <Accordion title="Leaders: Burebista and Decebalus">
+    **Burebista** (82–44 BCE) was the great unifier — a conqueror who brought disparate tribes under one banner, expanded Dacian territory to its greatest extent, and even alarmed Julius Caesar.
+
+    **Decebalus** (87–106 CE) was the defender — the last independent king of Dacia who frustrated Rome for decades with guerrilla warfare and shrewd diplomacy before dying by suicide rather than face capture.
+
+    These two leaders represent different playstyles: Burebista as an expansionist empire-builder; Decebalus as a defensive, attrition-focused defender.
+  </Accordion>
+</AccordionGroup>
+
+## Design decisions
+
+### Civilization ability: Carpathian Defenders
+
+Dacia's civilization ability draws from their famous military and mining heritage:
+- **+5 Combat Strength** for all units fighting in Hills or Forest terrain
+- **+1 Production and +1 Culture** from Gold Mines
+- **+1 Faith** per Mountain tile adjacent to Holy Sites
+
+This design rewards settling in mountainous terrain — consistent with Dacia's historical home in the Carpathians.
+
+### Unique unit: Falx Warrior
+
+The Falx Warrior replaces the standard Swordsman:
+- Higher Combat Strength (40 vs. 36)
+- **+10 Combat Strength** against fortified units (reflecting the falx's ability to pierce shields)
+- Slight weakness against ranged attacks (no shield)
+- Requires Iron
+
+### Unique building: Mountain Sanctuary
+
+Replaces the Shrine in the Holy Site district:
+- +2 Culture, +2 Faith base
+- Additional +1 Faith per adjacent Mountain tile
+- Reflects Dacian Zalmoxian religion and their mountain sanctuary complexes
+
+## Full SDK implementation
+
+<CodeGroup>
+
+```typescript src/index.ts
+import {
+    ACTION_GROUP_BUNDLE,
+    AGE,
+    CivilizationBuilder,
+    CivilizationUnlockBuilder,
+    COLLECTION,
+    CONSTRUCTIBLE_TYPE_TAG,
+    ConstructibleBuilder,
+    DISTRICT,
+    EFFECT,
+    ImportFileBuilder,
+    LeaderUnlockBuilder,
+    Mod,
+    ModifierBuilder,
+    REQUIREMENT,
+    TRAIT,
+    TAG_TRAIT,
+    TraditionBuilder,
+    UNIT,
+    UNIT_CLASS,
+    UnitBuilder,
+    YIELD,
+} from 'civ7-modding-tools';
+
+const mod = new Mod({
+    id: 'com.example.dacia',
+    version: '1.0',
+});
+
+// ---- Assets ----
+const civIcon = new ImportFileBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    content: './assets/civ_sym_dacia.dds',
+    name: 'civ_sym_dacia',
+});
+
+// ---- Civilization ----
+const dacia = new CivilizationBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    civilization: {
+        domain: 'AntiquityAgeCivilizations',
+        civilizationType: 'CIVILIZATION_DACIA',
+    },
+    civilizationTraits: [
+        TRAIT.ANTIQUITY_CIV,
+        TRAIT.ATTRIBUTE_MILITARISTIC,
+        TRAIT.ATTRIBUTE_CULTURAL,
+    ],
+    civilizationTags: [TAG_TRAIT.MILITARY, TAG_TRAIT.CULTURAL],
+    icon: { path: `fs://game/${mod.id}/${civIcon.name}` },
+    localizations: [{
+        name: 'Dacia',
+        description: 'Ancient Carpathian kingdom of fierce warriors and rich gold mines.',
+        fullName: 'Kingdom of Dacia',
+        adjective: 'Dacian',
+        cityNames: [
+            'Sarmizegetusa', 'Apulum', 'Napoca', 'Porolissum',
+            'Sucidava', 'Buridava', 'Cumidava', 'Piroboridava',
+            'Dierna', 'Tibiscum', 'Drobeta', 'Genucla',
+        ],
+    }],
+});
+
+// ---- Civilization Abilities ----
+const hillsCombat = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_UNITS,
+        effect: EFFECT.UNIT_ADJUST_COMBAT_STRENGTH,
+        permanent: true,
+        requirements: [{ type: REQUIREMENT.COMBAT_IS_IN_HILLS }],
+        arguments: [{ name: 'Amount', value: 5 }],
+    },
+    localizations: [{ description: '+5 Combat Strength when fighting on Hills.' }],
+});
+
+const forestCombat = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_UNITS,
+        effect: EFFECT.UNIT_ADJUST_COMBAT_STRENGTH,
+        permanent: true,
+        requirements: [{ type: REQUIREMENT.PLOT_HAS_FEATURE,
+            arguments: [{ name: 'FeatureType', value: 'FEATURE_FOREST' }] }],
+        arguments: [{ name: 'Amount', value: 5 }],
+    },
+    localizations: [{ description: '+5 Combat Strength in Forest terrain.' }],
+});
+
+dacia.bind([hillsCombat, forestCombat]);
+
+// ---- Unique Unit: Falx Warrior ----
+const falxWarrior = new UnitBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    typeTags: [UNIT_CLASS.MELEE, UNIT_CLASS.HEAVY],
+    unit: {
+        unitType: 'UNIT_DACIA_FALX_WARRIOR',
+        baseMoves: 2,
+        baseSightRange: 2,
+    },
+    unitCost: { cost: 90 },
+    unitStat: { combat: 40 },
+    unitReplace: { replacesUnitType: UNIT.SWORDSMAN },
+    visualRemap: { to: UNIT.SWORDSMAN },
+    localizations: [{
+        name: 'Falx Warrior',
+        description: 'Dacian warrior wielding the deadly curved falx blade.'
+            + ' Deals bonus damage against fortified units.',
+    }],
+});
+
+const falxVsFortified = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_UNITS,
+        effect: EFFECT.UNIT_ADJUST_COMBAT_STRENGTH,
+        requirements: [
+            { type: REQUIREMENT.UNIT_TAG_MATCHES,
+                arguments: [{ name: 'Tag', value: 'UNIT_DACIA_FALX_WARRIOR' }] },
+            { type: REQUIREMENT.UNIT_IS_ATTACKING },
+        ],
+        arguments: [{ name: 'Amount', value: 10 }],
+    },
+    localizations: [{ description: '+10 Combat Strength when attacking fortified units.' }],
+});
+
+falxWarrior.bind([falxVsFortified]);
+dacia.bind([falxWarrior]);
+
+// ---- Unique Building: Mountain Sanctuary ----
+const mountainSanctuary = new ConstructibleBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    constructible: { constructibleType: 'BUILDING_DACIA_MOUNTAIN_SANCTUARY' },
+    building: {},
+    typeTags: [
+        CONSTRUCTIBLE_TYPE_TAG.AGELESS,
+        CONSTRUCTIBLE_TYPE_TAG.UNIQUE,
+        CONSTRUCTIBLE_TYPE_TAG.CULTURE,
+    ],
+    constructibleValidDistricts: [DISTRICT.HOLY_SITE],
+    constructibleYieldChanges: [
+        { yieldType: YIELD.CULTURE, yieldChange: 2 },
+        { yieldType: YIELD.FAITH, yieldChange: 2 },
+    ],
+    constructibleReplace: { replacesBuildingType: 'BUILDING_SHRINE' },
+    localizations: [{
+        name: 'Mountain Sanctuary',
+        description: 'Sacred Dacian sanctuary in the high mountains.',
+        tooltip: '+2 Culture, +2 Faith. Replaces Shrine.',
+    }],
+});
+
+dacia.bind([mountainSanctuary]);
+
+// ---- Tradition: Carpathian Wolf Cult ----
+const wolfCult = new TraditionBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    tradition: { traditionType: 'TRADITION_DACIA_WOLF_CULT' },
+    localizations: [{
+        name: 'Wolf Cult',
+        description: 'Ancient Dacian reverence for the wolf spirit, patron of warriors.',
+    }],
+});
+
+const wolfCultBonus = new ModifierBuilder({
+    modifier: {
+        collection: COLLECTION.PLAYER_UNITS,
+        effect: EFFECT.UNIT_ADJUST_COMBAT_STRENGTH,
+        permanent: true,
+        arguments: [{ name: 'Amount', value: 3 }],
+    },
+    localizations: [{ description: '+3 Combat Strength for all units (Wolf Cult).' }],
+});
+
+wolfCult.bind([wolfCultBonus]);
+
+// ---- Leaders ----
+const burebista = new LeaderUnlockBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    leaderUnlock: {
+        leaderType: 'LEADER_BUREBISTA',
+        type: 'CIVILIZATION_DACIA',
+        ageType: AGE.ANTIQUITY,
+    },
+    leaderCivilizationBias: { bias: 8 },
+    localizations: [{
+        tooltip: '[B]Burebista[/B] unified the Dacian tribes (82\u201344 BCE).',
+    }],
+});
+
+const decebalus = new LeaderUnlockBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    leaderUnlock: {
+        leaderType: 'LEADER_DECEBALUS',
+        type: 'CIVILIZATION_DACIA',
+        ageType: AGE.ANTIQUITY,
+    },
+    leaderCivilizationBias: { bias: 10 },
+    localizations: [{
+        tooltip: '[B]Decebalus[/B], last king of independent Dacia (87\u2013106 CE).',
+    }],
+});
+
+// ---- Age Transition ----
+const daciaToRome = new CivilizationUnlockBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_EXPLORATION,
+    from: { civilizationType: 'CIVILIZATION_DACIA', ageType: AGE.ANTIQUITY },
+    to: { civilizationType: 'CIVILIZATION_ROME', ageType: AGE.EXPLORATION },
+});
+
+// ---- Build ----
+mod.add([
+    civIcon,
+    dacia,
+    falxWarrior,
+    mountainSanctuary,
+    wolfCult,
+    burebista,
+    decebalus,
+    daciaToRome,
+]).build('./dist');
+```
+
+```bash Mod output structure
+dist/
+├── com.example.dacia.modinfo
+├── civilizations/
+│   └── CIVILIZATION_DACIA/
+│       ├── current.xml
+│       └── game-effects.xml
+├── units/
+│   └── UNIT_DACIA_FALX_WARRIOR/
+│       └── current.xml
+├── constructibles/
+│   └── BUILDING_DACIA_MOUNTAIN_SANCTUARY/
+│       └── current.xml
+├── traditions/
+│   └── TRADITION_DACIA_WOLF_CULT/
+│       └── current.xml
+├── text/
+│   └── localizations.xml
+└── imports/
+    └── civ_sym_dacia.dds
+```
+
+</CodeGroup>
+
+## Implementation order
+
+When building a civilization from scratch, implement components in this order to make testing incremental:
+
+<Steps>
+  <Step title="Civilization definition">
+    Get the base civilization to appear in the leader selection screen. No abilities yet.
+  </Step>
+  <Step title="Leader associations">
+    Verify the civilization appears correctly with selectable leaders.
+  </Step>
+  <Step title="Unique unit">
+    Add and test the unique unit. Verify it replaces correctly and appears in the production queue.
+  </Step>
+  <Step title="Unique building">
+    Add the unique building and verify it appears in the appropriate district.
+  </Step>
+  <Step title="Civilization abilities">
+    Add modifiers and test them by playing through early game scenarios.
+  </Step>
+  <Step title="Traditions">
+    Add traditions and link them to the civic tree.
+  </Step>
+  <Step title="Age transition">
+    Define and test the transition civilization.
+  </Step>
+</Steps>
+
+## Balance notes
+
+| Component | Design target | Rationale |
+|---|---|---|
+| Hills/Forest combat bonus | +5 Combat Strength | Significant but not dominant; only applies in specific terrain |
+| Falx Warrior combat | 40 (vs. 36 Swordsman) | +4 over standard; meaningful but not game-breaking |
+| Mountain Sanctuary yields | +2 Culture, +2 Faith | Slightly stronger than Shrine (+1 Faith); compensated by Holy Site placement restriction |
+| Wolf Cult tradition | +3 Combat | Stacks with civ ability in terrain; keep tradition bonus moderate |
+
+## Related guides
+
+- [Creating Civilizations](/guides/typescript/creating-civilizations)
+- [Creating Units](/guides/typescript/creating-units)
+- [Creating Buildings](/guides/typescript/creating-buildings)
+- [Traditions](/guides/typescript/traditions)
+- [Leaders and Ages](/guides/typescript/leaders-and-ages)

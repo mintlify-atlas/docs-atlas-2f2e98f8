@@ -1,0 +1,111 @@
+---
+title: "Setup"
+description: "Clone the repo, install dependencies, link the CLI, and pull official game data — the complete setup sequence."
+---
+
+Setting up the toolkit is a two-part process: first you install the project and the CLI, then you use the CLI to pull game resources.
+
+<Note>
+  Complete the [Prerequisites](/installation/prerequisites) step before continuing. You need Node 22.14+, Bun, and Git.
+</Note>
+
+<Steps>
+  <Step title="Clone the repository">
+    Clone (or fork) the repository and move into the project root:
+
+    ```bash
+    git clone https://github.com/mateicanavra/civ7-modding-tools-fork.git
+    cd civ7-modding-tools-fork
+    ```
+
+    If you plan to make changes or build your own mods inside the repo, fork it first on GitHub and clone your fork instead.
+  </Step>
+
+  <Step title="Install dependencies">
+    Install all workspace packages using Bun's frozen lockfile flag to ensure reproducible installs:
+
+    ```bash
+    bun install --frozen-lockfile
+    ```
+
+    This installs dependencies for all packages in the monorepo: the SDK (`@mateicanavra/civ7-sdk`), the CLI (`@mateicanavra/civ7-cli`), config utilities, plugins, and the documentation and playground apps.
+
+    <Tip>
+      Using `--frozen-lockfile` prevents Bun from updating `bun.lockb` and ensures you get exactly the versions the project was tested with.
+    </Tip>
+  </Step>
+
+  <Step title="Build and link the CLI">
+    Build the CLI package and register the `civ7` binary globally:
+
+    ```bash
+    bun run link:cli
+    ```
+
+    This script runs `bun run --cwd packages/cli link:global`, which:
+
+    1. Compiles the TypeScript source to `packages/cli/dist/`
+    2. Regenerates `oclif.manifest.json`
+    3. Links the `civ7` binary into your global Bun bin path
+
+    You only need to run this once for initial setup. Re-run it after pulling changes that touch CLI source code or dependencies.
+
+    <Warning>
+      After linking, you may need to open a new terminal session or source your shell profile before the `civ7` command becomes available:
+
+      ```bash
+      source ~/.zshrc   # zsh
+      source ~/.bashrc  # bash
+      ```
+    </Warning>
+
+    Verify the binary is reachable:
+
+    ```bash
+    civ7 --version
+    ```
+  </Step>
+
+  <Step title="Pull game data">
+    Use the CLI to extract official game resources from your local Civilization VII installation:
+
+    ```bash
+    bun run refresh:data
+    ```
+
+    This script runs three operations in sequence:
+
+    1. **`resources:init`** — initializes the official resources git submodule at `.civ7/outputs/resources`
+    2. **`civ7 data zip default`** — archives game files using the `default` profile from `civ.config.jsonc`, writing to `.civ7/outputs/archives/civ7-official-resources.zip`
+    3. **`civ7 data unzip default`** — extracts the archive to `.civ7/outputs/resources`
+
+    You only need to run this command once. The `docs` and `playground` apps automatically sync from `.civ7/outputs/` when you start their dev servers.
+
+    <Note>
+      If you haven't configured `inputs.installDir` in `civ.config.jsonc` yet, the zip step will fail. See [Configuration](/installation/configuration) for how to point the CLI at your Civilization VII installation.
+    </Note>
+  </Step>
+</Steps>
+
+## Verify the setup
+
+After completing all four steps, confirm everything is working:
+
+```bash
+# CLI is available
+civ7 --help
+
+# Game resources were extracted
+ls .civ7/outputs/resources
+```
+
+You should see the extracted game XML files in `.civ7/outputs/resources`.
+
+## What's next
+
+With the toolkit installed and game data available, you can:
+
+- **Build your first mod** — follow the [Quickstart](/quickstart) to create a custom unit in minutes
+- **Explore the configuration** — read [Configuration](/installation/configuration) to customize input/output paths and profiles
+- **Run the docs site locally** — `bun run dev:docs` starts the Mintlify dev server
+- **Run the playground** — `bun run dev:playground` opens the example mods environment

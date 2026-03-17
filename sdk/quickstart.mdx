@@ -1,0 +1,163 @@
+---
+title: "SDK Quickstart"
+description: "Create your first Civ7 mod in TypeScript using the SDK builder API."
+---
+
+This guide walks you through creating a complete mod that adds a custom unit to the Antiquity age.
+
+## Install the SDK
+
+```bash
+bun add @mateicanavra/civ7-sdk
+```
+
+## Create a mod
+
+<Steps>
+  <Step title="Create your mod entry file">
+    Create a file such as `src/mod.ts` and import the SDK.
+
+    ```typescript src/mod.ts
+    import {
+      Mod,
+      UnitBuilder,
+      ACTION_GROUP_BUNDLE,
+      UNIT_CLASS,
+      UNIT,
+    } from '@mateicanavra/civ7-sdk';
+    ```
+  </Step>
+
+  <Step title="Instantiate a Mod">
+    The `Mod` class is the root of every mod. It holds all builders and writes the output.
+
+    ```typescript
+    const mod = new Mod({
+      id: 'my-first-mod',
+      version: '1.0.0',
+    });
+    ```
+
+    The `id` becomes the folder name and the `id` attribute in the `.modinfo` file.
+  </Step>
+
+  <Step title="Define a unit">
+    `UnitBuilder` accepts a configuration object. `actionGroupBundle` controls which age the unit belongs to.
+
+    ```typescript
+    const unit = new UnitBuilder({
+      actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+      typeTags: [UNIT_CLASS.RECON, UNIT_CLASS.RECON_ABILITIES],
+      unit: {
+        unitType: 'UNIT_CUSTOM_SCOUT',
+        baseMoves: 2,
+        baseSightRange: 10,
+      },
+      unitCost: { cost: 20 },
+      unitStat: { combat: 0 },
+      unitReplace: { replacesUnitType: UNIT.SCOUT },
+      visualRemap: { to: UNIT.ARMY_COMMANDER },
+      localizations: [
+        { name: 'Custom Scout', description: 'An enhanced scout unit' },
+      ],
+    });
+    ```
+
+    | Option | What it does |
+    |---|---|
+    | `actionGroupBundle` | Which age's action groups to use — `AGE_ANTIQUITY`, `AGE_EXPLORATION`, or `AGE_MODERN` |
+    | `typeTags` | Unit class tags that drive AI and ability lookups |
+    | `unit` | Core `Units` table row — `unitType` is the primary key |
+    | `unitCost` | Production cost |
+    | `unitStat` | Combat and other stat overrides |
+    | `unitReplace` | Replace an existing unit type for civilizations that have this unit's trait |
+    | `visualRemap` | Borrow visuals from another unit |
+    | `localizations` | Name and description shown in-game |
+  </Step>
+
+  <Step title="Add the unit to the mod and build">
+    ```typescript
+    mod.add([unit]).build('./my-first-mod');
+    ```
+
+    `build()` writes all XML files and the `.modinfo` to the `./my-first-mod` directory.
+  </Step>
+</Steps>
+
+## Complete example
+
+```typescript src/mod.ts
+import {
+  Mod,
+  UnitBuilder,
+  ACTION_GROUP_BUNDLE,
+  UNIT_CLASS,
+  UNIT,
+} from '@mateicanavra/civ7-sdk';
+
+const mod = new Mod({
+  id: 'my-first-mod',
+  version: '1.0.0',
+});
+
+const unit = new UnitBuilder({
+  actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+  typeTags: [UNIT_CLASS.RECON, UNIT_CLASS.RECON_ABILITIES],
+  unit: {
+    unitType: 'UNIT_CUSTOM_SCOUT',
+    baseMoves: 2,
+    baseSightRange: 10,
+  },
+  unitCost: { cost: 20 },
+  unitStat: { combat: 0 },
+  unitReplace: { replacesUnitType: UNIT.SCOUT },
+  visualRemap: { to: UNIT.ARMY_COMMANDER },
+  localizations: [
+    { name: 'Custom Scout', description: 'An enhanced scout unit' },
+  ],
+});
+
+mod.add([unit]).build('./my-first-mod');
+```
+
+## Run the build
+
+```bash
+bun run src/mod.ts
+```
+
+## Output structure
+
+After running the build, your output directory contains:
+
+```
+my-first-mod/
+├── my-first-mod.modinfo
+└── units/
+    └── unit-custom-scout/
+        ├── current.xml      # Units, Types, TypeTags, Unit_Costs, Unit_Stats
+        ├── visual-remap.xml # VisualRemaps
+        ├── localization.xml # EnglishText entries
+        └── icons.xml        # IconDefinitions
+```
+
+<Tip>
+  Copy the output folder to your Civilization VII mods directory (usually `~/Documents/My Games/Sid Meier's Civilization VII/Mods/`) to test in-game.
+</Tip>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Mod class" icon="box" href="/sdk/builders/mod">
+    Full reference for the Mod class options and methods.
+  </Card>
+  <Card title="UnitBuilder" icon="shield" href="/sdk/builders/unit">
+    All unit configuration options and defaults.
+  </Card>
+  <Card title="CivilizationBuilder" icon="landmark" href="/sdk/builders/civilization">
+    Add a custom civilization to your mod.
+  </Card>
+  <Card title="Game constants" icon="database" href="/sdk/constants/overview">
+    Browse all available UNIT, ABILITY, EFFECT, and other constants.
+  </Card>
+</CardGroup>

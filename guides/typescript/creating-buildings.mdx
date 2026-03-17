@@ -1,0 +1,253 @@
+---
+title: "Creating Buildings"
+description: "How to create buildings and tile improvements using ConstructibleBuilder."
+keywords: ["buildings", "improvements", "ConstructibleBuilder", "yields", "districts", "CONSTRUCTIBLE_TYPE_TAG"]
+---
+
+In Civilization VII, buildings and improvements are both created with `ConstructibleBuilder`. The difference is in the configuration: a building is placed inside a district, while an improvement is placed on a map tile.
+
+## Creating a building
+
+<Steps>
+  <Step title="Import dependencies">
+    ```typescript
+    import {
+        ACTION_GROUP_BUNDLE,
+        CONSTRUCTIBLE_TYPE_TAG,
+        ConstructibleBuilder,
+        DISTRICT,
+        Mod,
+        YIELD,
+    } from 'civ7-modding-tools';
+    ```
+  </Step>
+
+  <Step title="Define the building">
+    ```typescript
+    const mod = new Mod({ id: 'my-building-mod', version: '1.0' });
+
+    const trainingGrounds = new ConstructibleBuilder({
+        actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+
+        // Core constructible identity
+        constructible: {
+            constructibleType: 'BUILDING_TRAINING_GROUNDS',
+        },
+
+        // Mark as a building (not an improvement)
+        building: {},
+
+        // Type tags affect targeting and behavior
+        typeTags: [
+            CONSTRUCTIBLE_TYPE_TAG.AGELESS,      // Persists through age transitions
+            CONSTRUCTIBLE_TYPE_TAG.PRODUCTION,
+            CONSTRUCTIBLE_TYPE_TAG.MILITARY,
+        ],
+
+        // Districts where this building can be placed
+        constructibleValidDistricts: [
+            DISTRICT.URBAN,
+            DISTRICT.CITY_CENTER,
+        ],
+
+        // Yields provided by the building
+        constructibleYieldChanges: [
+            { yieldType: YIELD.PRODUCTION, yieldChange: 2 },
+        ],
+
+        // Gold upkeep per turn
+        constructibleMaintenances: [
+            { yieldType: YIELD.GOLD, amount: 2 },
+        ],
+
+        localizations: [{
+            name: 'Training Grounds',
+            description: 'Military training facility providing production bonuses.',
+            tooltip: '+2 Production, costs 2 Gold per turn.',
+        }],
+    });
+
+    mod.add([trainingGrounds]).build('./dist');
+    ```
+  </Step>
+</Steps>
+
+## Creating an improvement
+
+Improvements are built on map tiles by workers and provide tile yields:
+
+```typescript
+import {
+    ACTION_GROUP_BUNDLE,
+    CONSTRUCTIBLE_TYPE_TAG,
+    ConstructibleBuilder,
+    TERRAIN,
+    Mod,
+    YIELD,
+} from 'civ7-modding-tools';
+
+const sacredGrove = new ConstructibleBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+
+    constructible: {
+        constructibleType: 'IMPROVEMENT_SACRED_GROVE',
+    },
+
+    // Mark as an improvement
+    improvement: {
+        resourceTier: 0,
+        cityBuildable: true,
+    },
+
+    typeTags: [
+        CONSTRUCTIBLE_TYPE_TAG.AGELESS,
+        CONSTRUCTIBLE_TYPE_TAG.CULTURE,
+        CONSTRUCTIBLE_TYPE_TAG.HAPPINESS,
+    ],
+
+    // Terrain types where this improvement can be built
+    constructibleValidTerrains: [
+        TERRAIN.GRASS,
+        TERRAIN.PLAINS,
+    ],
+
+    constructibleYieldChanges: [
+        { yieldType: YIELD.CULTURE, yieldChange: 1 },
+        { yieldType: YIELD.HAPPINESS, yieldChange: 1 },
+    ],
+
+    localizations: [{
+        name: 'Sacred Grove',
+        description: 'A sacred natural area providing cultural benefits.',
+        tooltip: '+1 Culture, +1 Happiness.',
+    }],
+});
+```
+
+## Key parameters
+
+### `constructible` — identity
+
+| Field | Description |
+|---|---|
+| `constructibleType` | Unique identifier. Prefix with your mod name (e.g., `BUILDING_MYMOD_`). |
+
+### Type tags
+
+| Tag | Effect |
+|---|---|
+| `AGELESS` | Building persists through age transitions |
+| `UNIQUE` | Civilization-unique building |
+| `PRODUCTION` | Categorized as a production building |
+| `MILITARY` | Categorized as a military building |
+| `CULTURE` | Categorized as a culture building |
+| `ECONOMY` | Categorized as an economic building |
+| `HAPPINESS` | Categorized as an amenity building |
+
+### `constructibleValidDistricts`
+
+Common district values:
+
+| Constant | District |
+|---|---|
+| `DISTRICT.CITY_CENTER` | City center |
+| `DISTRICT.URBAN` | General urban district |
+| `DISTRICT.HARBOR` | Harbor |
+| `DISTRICT.HOLY_SITE` | Holy site |
+| `DISTRICT.ENCAMPMENT` | Military encampment |
+
+### `constructibleYieldChanges`
+
+Yield types available in `YIELD`:
+
+| Constant | Yield |
+|---|---|
+| `YIELD.FOOD` | Food |
+| `YIELD.PRODUCTION` | Production (hammers) |
+| `YIELD.GOLD` | Gold |
+| `YIELD.SCIENCE` | Science |
+| `YIELD.CULTURE` | Culture |
+| `YIELD.FAITH` | Faith |
+| `YIELD.HAPPINESS` | Happiness |
+
+## Building replacement
+
+To create a civilization-unique building that replaces a base game building:
+
+```typescript
+const mountainSanctuary = new ConstructibleBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    constructible: {
+        constructibleType: 'BUILDING_DACIA_MOUNTAIN_SANCTUARY',
+    },
+    building: {},
+    typeTags: [
+        CONSTRUCTIBLE_TYPE_TAG.AGELESS,
+        CONSTRUCTIBLE_TYPE_TAG.UNIQUE,
+        CONSTRUCTIBLE_TYPE_TAG.CULTURE,
+    ],
+    constructibleValidDistricts: [DISTRICT.HOLY_SITE],
+    constructibleYieldChanges: [
+        { yieldType: YIELD.CULTURE, yieldChange: 2 },
+        { yieldType: YIELD.FAITH, yieldChange: 2 },
+    ],
+    // Replaces the standard Shrine for Dacia
+    constructibleReplace: { replacesBuildingType: 'BUILDING_SHRINE' },
+    localizations: [{
+        name: 'Mountain Sanctuary',
+        description: 'Sacred Dacian sanctuary providing culture and faith.',
+        tooltip: '+2 Culture, +2 Faith. Replaces Shrine.',
+    }],
+});
+```
+
+## Adding prerequisites
+
+```typescript
+const advancedBarracks = new ConstructibleBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    constructible: { constructibleType: 'BUILDING_ADVANCED_BARRACKS' },
+    building: {},
+    typeTags: [CONSTRUCTIBLE_TYPE_TAG.MILITARY],
+    constructibleValidDistricts: [DISTRICT.ENCAMPMENT],
+
+    // Requires Barracks to be built first
+    constructiblePrereqs: [
+        { constructibleType: 'BUILDING_BARRACKS' },
+    ],
+
+    constructibleYieldChanges: [
+        { yieldType: YIELD.PRODUCTION, yieldChange: 3 },
+    ],
+    localizations: [{ name: 'Advanced Barracks', description: 'Requires Barracks.' }],
+});
+```
+
+## Resource-locked improvements
+
+```typescript
+import { RESOURCE } from 'civ7-modding-tools';
+
+const goldForge = new ConstructibleBuilder({
+    actionGroupBundle: ACTION_GROUP_BUNDLE.AGE_ANTIQUITY,
+    constructible: { constructibleType: 'IMPROVEMENT_GOLD_FORGE' },
+    improvement: { resourceTier: 1, cityBuildable: false },
+    typeTags: [CONSTRUCTIBLE_TYPE_TAG.ECONOMY],
+    constructibleValidTerrains: [TERRAIN.GRASS, TERRAIN.PLAINS, TERRAIN.GRASS_HILLS],
+
+    // Only placeable on gold resource tiles
+    constructibleValidResources: [RESOURCE.GOLD],
+
+    constructibleYieldChanges: [
+        { yieldType: YIELD.GOLD, yieldChange: 3 },
+        { yieldType: YIELD.PRODUCTION, yieldChange: 1 },
+    ],
+    localizations: [{ name: 'Gold Forge', description: 'Built on gold resource tiles.' }],
+});
+```
+
+## Related guides
+
+- [Creating Civilizations](/guides/typescript/creating-civilizations)
+- [Unique Quarters](/guides/typescript/unique-quarters)
+- [Modifiers and Effects](/guides/typescript/modifiers-and-effects)
