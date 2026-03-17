@@ -1,0 +1,143 @@
+{
+  "projectType": "cli-tool",
+  "projectName": "Civ7 Modding Tools",
+  "projectDescription": "A TypeScript monorepo providing a CLI, SDK, and plugin libraries for programmatically creating and managing Civilization VII mods.",
+  "theme": "maple",
+  "primaryColor": "#848c8e",
+  "lightColor": "#11161e",
+  "darkColor": "#cfd0d2",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Getting Started",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": ["introduction", "quickstart"]
+          },
+          {
+            "group": "Installation",
+            "pages": ["installation/prerequisites", "installation/setup", "installation/configuration"]
+          }
+        ]
+      },
+      {
+        "tab": "SDK",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": ["sdk/overview", "sdk/quickstart"]
+          },
+          {
+            "group": "Builders",
+            "pages": [
+              "sdk/builders/mod",
+              "sdk/builders/unit",
+              "sdk/builders/civilization",
+              "sdk/builders/constructible",
+              "sdk/builders/progression-tree",
+              "sdk/builders/modifier",
+              "sdk/builders/tradition",
+              "sdk/builders/unique-quarter"
+            ]
+          },
+          {
+            "group": "Low-Level API",
+            "pages": ["sdk/nodes/overview", "sdk/files/xml-file", "sdk/files/import-file"]
+          },
+          {
+            "group": "Constants & Types",
+            "pages": ["sdk/constants/overview", "sdk/types/overview"]
+          }
+        ]
+      },
+      {
+        "tab": "CLI",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": ["cli/overview", "cli/configuration"]
+          },
+          {
+            "group": "Commands",
+            "pages": [
+              "cli/commands/data-crawl",
+              "cli/commands/data-explore",
+              "cli/commands/data-render",
+              "cli/commands/data-slice",
+              "cli/commands/data-zip",
+              "cli/commands/data-unzip",
+              "cli/commands/mod-git",
+              "cli/commands/mod-manage"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Guides",
+        "groups": [
+          {
+            "group": "Modding Fundamentals",
+            "pages": [
+              "guides/modding-architecture",
+              "guides/modinfo-files",
+              "guides/database-modding",
+              "guides/modifier-system"
+            ]
+          },
+          {
+            "group": "TypeScript How-To",
+            "pages": [
+              "guides/typescript/creating-units",
+              "guides/typescript/creating-civilizations",
+              "guides/typescript/creating-buildings",
+              "guides/typescript/leaders-and-ages",
+              "guides/typescript/unique-quarters",
+              "guides/typescript/traditions",
+              "guides/typescript/progression-trees",
+              "guides/typescript/modifiers-and-effects",
+              "guides/typescript/assets-and-icons"
+            ]
+          },
+          {
+            "group": "Examples",
+            "pages": ["guides/examples/dacia-civilization", "guides/examples/custom-unit", "guides/examples/custom-civilization"]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "TypeScript SDK with strongly-typed builders for units, civilizations, constructibles, progression trees, and more",
+    "CLI tool (civ7) for crawling XML game resources and visualizing dependency graphs",
+    "Graph visualization with Graphviz WebAssembly rendering and interactive HTML viewer",
+    "Resource archive management (zip/unzip) with profile-based configuration",
+    "Mod management via git subtree for importing and syncing external mod repositories",
+    "Comprehensive game constants (units, abilities, effects, terrain, resources) for IntelliSense support",
+    "Built-in localization support for multiple languages",
+    "Monorepo workspace with Turbo build orchestration and Bun package management"
+  ],
+  "publicApiSurface": [
+    "Mod class - main mod orchestrator",
+    "UnitBuilder - create custom units with stats, costs, and abilities",
+    "CivilizationBuilder - define new civilizations with unique traits",
+    "CivilizationUnlockBuilder - set civilization-specific unlocks",
+    "LeaderUnlockBuilder - configure leader bonuses and abilities",
+    "ConstructibleBuilder - create buildings and improvements",
+    "UniqueQuarterBuilder - design unique districts",
+    "ProgressionTreeBuilder - build civic and tech trees",
+    "TraditionBuilder - add new policy cards",
+    "ModifierBuilder - create game modifiers and effects",
+    "ImportFileBuilder - import SQL files and custom assets",
+    "XmlFile - XML file generation with action groups",
+    "DatabaseNode - aggregate multiple node types",
+    "civ7 data crawl <seed> - crawl XML resources and output dependency graph",
+    "civ7 data explore <seed> - one-shot crawl + render + interactive viewer",
+    "civ7 data render <input> - render DOT file to SVG",
+    "civ7 data slice <manifest> - copy files from manifest to destination",
+    "civ7 data zip <profile> - create archive of game resources",
+    "civ7 data unzip <profile> - extract resource archive",
+    "civ7 mod git import/pull/push/status - manage mod repositories via git subtree",
+    "civ7 mod manage list/deploy - manage local mod folders"
+  ]
+}
